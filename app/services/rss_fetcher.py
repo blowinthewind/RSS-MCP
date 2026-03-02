@@ -48,11 +48,9 @@ class RSSFetcher:
         try:
             logger.info(f"Fetching feed from {source.name} ({source.url})")
 
-            # Parse the feed
-            feed = feedparser.parse(
-                source.url,
-                timeout=self.timeout,
-            )
+            # Parse the feed directly (feedparser doesn't support timeout)
+            # For timeout support, we would need to fetch with httpx first
+            feed = feedparser.parse(source.url)
 
             # Check for parsing errors
             if feed.bozo and feed.bozo_exception:
