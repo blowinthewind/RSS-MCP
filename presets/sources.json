@@ -1,0 +1,60 @@
+{
+  "sources": [
+    {
+      "name": "Hacker News",
+      "url": "https://news.ycombinator.com/rss",
+      "tags": ["tech", "ai", "startup"],
+      "enabled": true,
+      "fetch_interval": 300
+    },
+    {
+      "name": "TechCrunch",
+      "url": "https://techcrunch.com/feed/",
+      "tags": ["tech", "startup"],
+      "enabled": true,
+      "fetch_interval": 300
+    },
+    {
+      "name": "36kr",
+      "url": "https://36kr.com/feed/",
+      "tags": ["tech", "startup", "cn"],
+      "enabled": true,
+      "fetch_interval": 300
+    },
+    {
+      "name": "虎嗅",
+      "url": "https://www.huxiu.com/rss",
+      "tags": ["tech", "cn"],
+      "enabled": true,
+      "fetch_interval": 300
+    },
+    {
+      "name": "V2ex",
+      "url": "https://www.v2ex.com/index.xml",
+      "tags": ["tech", "cn", "community"],
+      "enabled": true,
+      "fetch_interval": 300
+    },
+    {
+      "name": "BBC World",
+      "url": "http://feeds.bbci.co.uk/news/world/rss.xml",
+      "tags": ["news", "world"],
+      "enabled": true,
+      "fetch_interval": 600
+    },
+    {
+      "name": "MIT Technology Review",
+      "url": "https://www.technologyreview.com/feed/",
+      "tags": ["tech", "ai"],
+      "enabled": true,
+      "fetch_interval": 600
+    },
+    {
+      "name": "Ars Technica",
+      "url": "https://feeds.arstechnica.com/arstechnica/index",
+      "tags": ["tech"],
+      "enabled": true,
+      "fetch_interval": 600
+    }
+  ]
+}
