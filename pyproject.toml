@@ -27,6 +27,9 @@ dev = [
     "mypy>=1.8.0",
 ]
 
+[project.scripts]
+rss-mcp = "app.main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
