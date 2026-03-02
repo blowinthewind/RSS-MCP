@@ -31,8 +31,12 @@ class Scheduler:
         """Initialize scheduler."""
         self.scheduler = BackgroundScheduler()
 
-    def start(self):
-        """Start the scheduler."""
+    def start(self, run_immediately: bool = True):
+        """Start the scheduler.
+
+        Args:
+            run_immediately: If True, run fetch immediately on start.
+        """
         if self.scheduler.running:
             logger.warning("Scheduler is already running")
             return
@@ -48,6 +52,11 @@ class Scheduler:
 
         self.scheduler.start()
         logger.info("Scheduler started")
+
+        # Run immediately if requested
+        if run_immediately:
+            logger.info("Running initial fetch immediately...")
+            self.fetch_all_sources()
 
     def stop(self):
         """Stop the scheduler."""
