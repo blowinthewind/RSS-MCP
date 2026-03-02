@@ -49,7 +49,7 @@ class Source(Base):
     # Tags for categorization - stored as JSON list
     tags: Mapped[list[str]] = mapped_column(
         JSON,
-        default_factory=list,
+        default=lambda: [],
     )
 
     # Whether this source is active

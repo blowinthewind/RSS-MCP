@@ -23,8 +23,8 @@ def get_preset_sources_path() -> str:
     """
     # Get the directory of this file
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Go up to project root
-    project_root = os.path.dirname(current_dir)
+    # Go up two levels: services -> app -> project root
+    project_root = os.path.dirname(os.path.dirname(current_dir))
     # Return path to presets/sources.json
     return os.path.join(project_root, "presets", "sources.json")
 
