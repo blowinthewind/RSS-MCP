@@ -1,30 +1,30 @@
 {
   "sources": [
     {
-      "name": "Hacker News",
-      "url": "https://news.ycombinator.com/rss",
-      "tags": ["tech", "ai", "startup"],
+      "name": "Bloomberg Technology-AI",
+      "url": "https://quanwenrss.com/bloomberg/technology-ai",
+      "tags": ["tech", "ai"],
       "enabled": true,
       "fetch_interval": 300
     },
     {
-      "name": "TechCrunch",
-      "url": "https://techcrunch.com/feed/",
-      "tags": ["tech", "startup"],
+      "name": "Politico Technology News",
+      "url": "https://quanwenrss.com/politico/technology",
+      "tags": ["tech", "ai"],
       "enabled": true,
       "fetch_interval": 300
     },
     {
-      "name": "36kr",
-      "url": "https://36kr.com/feed/",
-      "tags": ["tech", "startup", "cn"],
-      "enabled": true,
-      "fetch_interval": 300
-    },
-    {
-      "name": "虎嗅",
-      "url": "https://www.huxiu.com/rss",
+      "name": "财新科技频道",
+      "url": "https://quanwenrss.com/caixin/technology",
       "tags": ["tech", "cn"],
+      "enabled": true,
+      "fetch_interval": 300
+    },
+    {
+      "name": "财新最新",
+      "url": "https://quanwenrss.com/caixin",
+      "tags": ["world", "finance", "cn"],
       "enabled": true,
       "fetch_interval": 300
     },
@@ -37,7 +37,7 @@
     },
     {
       "name": "BBC World",
-      "url": "http://feeds.bbci.co.uk/news/world/rss.xml",
+      "url": "https://quanwenrss.com/bbc/world",
       "tags": ["news", "world"],
       "enabled": true,
       "fetch_interval": 600
