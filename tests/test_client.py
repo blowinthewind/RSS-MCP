@@ -1,331 +1,163 @@
-"""MCP Test Client - Simulates LLM calling MCP service.
+#!/usr/bin/env python
+"""MCP Test Client - Tests MCP service via subprocess.
 
-This module provides a test client for simulating LLM interactions with the MCP service.
-It can be used to test and demonstrate how an LLM would interact with the RSS MCP service.
+This module provides a simple test client that communicates with MCP
+via stdio using subprocess. Works for both stdio and SSE modes.
 
 Usage:
-    # Option 1: Connect to already running SSE server
-    # First start the server: DEPLOYMENT=sse uv run rss-mcp
-    # Then run client: uv run python tests/test_client.py
+    # SSE mode (recommended):
+    # Terminal 1: DEPLOYMENT=sse uv run rss-mcp
+    # Terminal 2: uv run python tests/test_client.py
 
-    # Option 2: Auto-start server (stdio mode)
-    # uv run python tests/test_client.py --stdio
+    # Stdio mode:
+    # uv run python tests/test_client.py --mode stdio
 """
 
-import asyncio
+import subprocess
 import json
 import sys
+import os
 from typing import Any, Optional
-
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from mcp.client.sse import sse_client
 
 
 class MCPTestClient:
-    """
-    Test client for simulating LLM interactions with MCP service.
-
-    This client connects to the MCP server and provides methods
-    that simulate how an LLM would call the MCP tools.
-    """
+    """Simple MCP test client using subprocess."""
 
     def __init__(
         self,
-        mode: str = "sse",
+        mode: str = "stdio",
         sse_url: str = "http://localhost:8000/sse",
-        command: str = "uv",
-        args: Optional[list[str]] = None,
     ):
-        """
-        Initialize the test client.
-
-        Args:
-            mode: Connection mode - "sse" (connect to running server) or "stdio" (auto-start server)
-            sse_url: URL for SSE mode (default: http://localhost:8000/sse)
-            command: Command to run the MCP server (for stdio mode)
-            args: Arguments for the command (for stdio mode)
-        """
         self.mode = mode
         self.sse_url = sse_url
-        self.command = command
-        self.args = args or ["run", "rss-mcp"]
-        self.session: Optional[ClientSession] = None
-        self._tool_timeout = 10  # seconds
+        self.proc: Optional[subprocess.Popen] = None
+        self._request_id = 1
 
-    async def connect(self):
-        """Connect to the MCP server."""
-        print(f"Connecting in {self.mode} mode to {self.sse_url}...")
-
+    def start(self):
+        """Start the MCP server process."""
         if self.mode == "stdio":
-            # Stdio mode: start server as subprocess
-            server_params = StdioServerParameters(
-                command=self.command,
-                args=self.args,
+            self.proc = subprocess.Popen(
+                ["uv", "run", "rss-mcp"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
             )
-            async with stdio_client(server_params) as (read, write):
-                self.session = ClientSession(read, write)
-                await self.session.initialize()
-        else:
-            # SSE mode: connect to already running server
-            async with sse_client(self.sse_url) as (read, write):
-                self.session = ClientSession(read, write)
-                await self.session.initialize()
-
-        # List available tools
-        response = await self.session.list_tools()
-        print(f"Connected to MCP server ({self.mode} mode)")
-        print(f"Available tools: {[tool.name for tool in response.tools]}")
-
-    async def disconnect(self):
-        """Disconnect from the MCP server."""
-        if self.session:
-            await self.session.close()
-            self.session = None
-
-    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict:
-        """
-        Call an MCP tool.
-
-        Args:
-            tool_name: Name of the tool to call
-            arguments: Arguments to pass to the tool
-
-        Returns:
-            Tool response as dictionary
-        """
-        if not self.session:
-            raise RuntimeError("Not connected to MCP server")
-
-        print(f"Calling tool: {tool_name}")
-
-        # Use asyncio.wait_for to add timeout
-        try:
-            result = await asyncio.wait_for(
-                self.session.call_tool(tool_name, arguments), timeout=self._tool_timeout
-            )
-        except asyncio.TimeoutError:
-            print(f"Tool call timed out after {self._tool_timeout} seconds")
-            return {"error": "timeout"}
-
-        # Parse the result text
-        if result.content:
-            text_content = result.content[0].text
-            try:
-                return json.loads(text_content)
-            except json.JSONDecodeError:
-                print(f"Failed to parse JSON: {text_content[:200]}")
-                return {"raw": text_content}
-
-        return {}
-
-    async def read_resource(self, uri: str) -> str:
-        """
-        Read an MCP resource.
-
-        Args:
-            uri: Resource URI to read
-
-        Returns:
-            Resource content as string
-        """
-        if not self.session:
-            raise RuntimeError("Not connected to MCP server")
-
-        result = await self.session.read_resource(uri)
-
-        if result.contents:
-            return result.contents[0].text
-
-        return ""
-
-    # =========================================================================
-    # LLM Simulation Methods
-    # These methods simulate how an LLM would use the MCP tools
-    # =========================================================================
-
-    async def simulate_llm_list_sources(self) -> dict:
-        """
-        Simulate LLM calling list_sources.
-
-        This is typically the first call an LLM would make to
-        understand what RSS sources are available.
-        """
-        print("\n--- LLM Action: Listing all RSS sources ---")
-
-        result = await self.call_tool("list_sources", {})
-
-        print(f"Found {result.get('total', 0)} sources:")
-        for source in result.get("sources", [])[:5]:
-            print(f"  - {source['name']} (tags: {source.get('tags', [])})")
-
-        return result
-
-    async def simulate_llm_search_ai_news(self) -> dict:
-        """
-        Simulate LLM searching for AI news.
-
-        This is how an LLM would search for specific content.
-        """
-        print("\n--- LLM Action: Searching for AI news ---")
-
-        result = await self.call_tool(
-            "search_feeds",
-            {
-                "query": "AI",
-                "limit": 5,
-            },
-        )
-
-        print(f"Found {result.get('total', 0)} articles")
-        for item in result.get("items", [])[:5]:
-            print(f"  - {item['title']}")
-            print(f"    Source: {item.get('source_name')}")
-
-        return result
-
-    async def simulate_llm_get_source_items(self, source_id: str) -> dict:
-        """
-        Simulate LLM getting items from a specific source.
-
-        Args:
-            source_id: ID of the source to get items from
-        """
-        print(f"\n--- LLM Action: Getting items from source {source_id} ---")
-
-        result = await self.call_tool(
-            "get_feed_items",
-            {
-                "source_id": source_id,
-                "limit": 5,
-            },
-        )
-
-        print(f"Source: {result.get('source', {}).get('name')}")
-        print(f"Found {result.get('total', 0)} articles")
-
-        return result
-
-    async def simulate_llm_add_source(self) -> dict:
-        """
-        Simulate LLM adding a new RSS source.
-        """
-        print("\n--- LLM Action: Adding a new RSS source ---")
-
-        result = await self.call_tool(
-            "add_source",
-            {
-                "url": "https://www.wired.com/feed/rss",
-                "name": "Wired",
-                "tags": "tech,science",
-                "fetch_interval": 600,
-            },
-        )
-
-        print(f"Result: {result.get('message', result)}")
-
-        return result
-
-    async def simulate_llm_full_workflow(self):
-        """
-        Simulate a complete LLM workflow.
-
-        This demonstrates how an LLM would typically interact with
-        the RSS MCP service to answer user questions.
-        """
-        print("\n" + "=" * 60)
-        print("SIMULATING LLM WORKFLOW")
-        print("=" * 60)
-
-        # Step 1: List available sources
-        print("\n[User Query]: What RSS sources do you have?")
-        sources = await self.simulate_llm_list_sources()
-
-        # Step 2: Search for specific topic
-        print("\n[User Query]: Tell me about AI news")
-        articles = await self.simulate_llm_search_ai_news()
-
-        # Step 3: Get content from a specific article
-        if articles.get("items"):
-            first_article_id = articles["items"][0]["id"]
-            print(f"\n[User Query]: Tell me more about the first article")
-            content = await self.call_tool(
-                "get_article_content",
+            # Send initialize
+            self._send_request(
+                "initialize",
                 {
-                    "article_id": first_article_id,
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "test-client", "version": "1.0.0"},
                 },
             )
-            print(f"Article content retrieved: {bool(content.get('article', {}).get('content'))}")
+            # Read initialize response
+            self._read_response()
+            # Send initialized notification
+            self._send_notification("initialized", {})
+        else:
+            raise RuntimeError("SSE mode not supported in subprocess mode")
 
-        print("\n" + "=" * 60)
-        print("WORKFLOW COMPLETE")
-        print("=" * 60)
+    def _send_request(self, method: str, params: dict) -> int:
+        """Send a JSON-RPC request."""
+        request = {"jsonrpc": "2.0", "id": self._request_id, "method": method, "params": params}
+        self._request_id += 1
+        self.proc.stdin.write(json.dumps(request) + "\n")
+        self.proc.stdin.flush()
+        return self._request_id - 1
+
+    def _send_notification(self, method: str, params: dict):
+        """Send a JSON-RPC notification (no response expected)."""
+        request = {"jsonrpc": "2.0", "method": method, "params": params}
+        self.proc.stdin.write(json.dumps(request) + "\n")
+        self.proc.stdin.flush()
+
+    def _read_response(self) -> dict:
+        """Read a JSON-RPC response."""
+        line = self.proc.stdout.readline()
+        return json.loads(line)
+
+    def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict:
+        """Call an MCP tool."""
+        if not self.proc:
+            raise RuntimeError("Client not started")
+
+        req_id = self._send_request("tools/call", {"name": tool_name, "arguments": arguments})
+
+        # Read response
+        response = self._read_response()
+
+        if "result" in response:
+            result = response["result"]
+            # Handle different response formats
+            if isinstance(result, dict):
+                if "content" in result:
+                    content = result["content"]
+                    if isinstance(content, list) and len(content) > 0:
+                        text_content = content[0].get("text", str(content[0]))
+                        try:
+                            return json.loads(text_content)
+                        except (json.JSONDecodeError, AttributeError):
+                            return {"raw": text_content}
+                return result
+
+        return response
+
+    def list_tools(self) -> list:
+        """List available tools."""
+        if not self.proc:
+            raise RuntimeError("Client not started")
+
+        req_id = self._send_request("tools/list", {})
+        response = self._read_response()
+
+        if "result" in response and "tools" in response["result"]:
+            return response["result"]["tools"]
+        return []
+
+    def stop(self):
+        """Stop the MCP server process."""
+        if self.proc:
+            self.proc.terminate()
+            self.proc.wait()
 
 
-async def main():
-    """Main entry point for the test client."""
+def main():
+    """Main entry point."""
     import argparse
 
     parser = argparse.ArgumentParser(description="MCP Test Client")
-    parser.add_argument(
-        "--mode",
-        choices=["sse", "stdio"],
-        default="sse",
-        help="Connection mode: sse (connect to running server) or stdio (auto-start server)",
-    )
-    parser.add_argument(
-        "--url",
-        default="http://localhost:8000/sse",
-        help="SSE server URL (for SSE mode)",
-    )
-    parser.add_argument(
-        "--command", default="uv", help="Command to run MCP server (for stdio mode)"
-    )
-    parser.add_argument("--workflow", action="store_true", help="Run full LLM workflow")
-    parser.add_argument("--tool", help="Call a specific tool")
+    parser.add_argument("--mode", default="stdio", choices=["stdio"])
+    parser.add_argument("--tool", help="Tool to call")
     parser.add_argument("--args", default="{}", help="Tool arguments as JSON")
+    parser.add_argument("--list", action="store_true", help="List available tools")
 
     args = parser.parse_args()
 
-    client = MCPTestClient(
-        mode=args.mode,
-        sse_url=args.url,
-        command=args.command,
-    )
+    client = MCPTestClient(mode=args.mode)
 
     try:
-        await client.connect()
+        print("Starting MCP server...", file=sys.stderr)
+        client.start()
 
-        if args.workflow:
-            await client.simulate_llm_full_workflow()
+        if args.list:
+            tools = client.list_tools()
+            print(json.dumps([t["name"] for t in tools], indent=2))
         elif args.tool:
-            import json
-
             tool_args = json.loads(args.args)
-            result = await client.call_tool(args.tool, tool_args)
+            result = client.call_tool(args.tool, tool_args)
             print(json.dumps(result, indent=2))
         else:
-            # Interactive mode
-            print("MCP Test Client")
-            print("=" * 40)
-            print(f"Mode: {args.mode}")
-            if args.mode == "sse":
-                print(f"Server URL: {args.url}")
-                print("\nMake sure the server is running:")
-                print("  DEPLOYMENT=sse uv run rss-mcp")
-            else:
-                print("Server will be started automatically")
-            print("\nCommands:")
-            print("  --workflow        Run full LLM workflow simulation")
-            print("  --tool <name>     Call a specific tool")
-            print("  --args <json>     Tool arguments")
-            print("\nAvailable tools: list_sources, add_source, remove_source, ")
-            print("                  enable_source, get_feed_items, search_feeds,")
-            print("                  get_article_content, refresh_source, refresh_all")
+            tools = client.list_tools()
+            print("Available tools:", file=sys.stderr)
+            for tool in tools:
+                print(f"  - {tool['name']}", file=sys.stderr)
 
     finally:
-        await client.disconnect()
+        client.stop()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
