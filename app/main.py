@@ -177,29 +177,10 @@ def run_sse():
 
     This is used for remote MCP client connections.
     """
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
-
-    # Create app
-    app = create_app()
-
-    # Add CORS middleware
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    # Mount MCP at /mcp
-    mcp_server = mcp.stream_app()
-    app.mount("/mcp", mcp_server)
-
-    # Run server
     import uvicorn
 
-    uvicorn.run(app, host=settings.host, port=settings.port)
+    # Use FastMCP's built-in SSE support
+    mcp.run(transport="sse", host=settings.host, port=settings.port)
 
 
 def main():

@@ -2,6 +2,14 @@
 
 This module provides a test client for simulating LLM interactions with the MCP service.
 It can be used to test and demonstrate how an LLM would interact with the RSS MCP service.
+
+Usage:
+    # Option 1: Connect to already running SSE server
+    # First start the server: DEPLOYMENT=sse uv run rss-mcp
+    # Then run client: uv run python tests/test_client.py
+
+    # Option 2: Auto-start server (stdio mode)
+    # uv run python tests/test_client.py --stdio
 """
 
 import asyncio
@@ -11,6 +19,7 @@ from typing import Any, Optional
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.client.sse import sse_client
 
 
 class MCPTestClient:
@@ -21,33 +30,52 @@ class MCPTestClient:
     that simulate how an LLM would call the MCP tools.
     """
 
-    def __init__(self, command: str = "uv", args: Optional[list[str]] = None):
+    def __init__(
+        self,
+        mode: str = "sse",
+        sse_url: str = "http://localhost:8000/sse",
+        command: str = "uv",
+        args: Optional[list[str]] = None,
+    ):
         """
         Initialize the test client.
 
         Args:
-            command: Command to run the MCP server (default: "uv")
-            args: Arguments for the command (default: ["run", "rss-mcp"])
+            mode: Connection mode - "sse" (connect to running server) or "stdio" (auto-start server)
+            sse_url: URL for SSE mode (default: http://localhost:8000/sse)
+            command: Command to run the MCP server (for stdio mode)
+            args: Arguments for the command (for stdio mode)
         """
+        self.mode = mode
+        self.sse_url = sse_url
         self.command = command
         self.args = args or ["run", "rss-mcp"]
         self.session: Optional[ClientSession] = None
+        self._tool_timeout = 10  # seconds
 
     async def connect(self):
         """Connect to the MCP server."""
-        server_params = StdioServerParameters(
-            command=self.command,
-            args=self.args,
-        )
+        print(f"Connecting in {self.mode} mode to {self.sse_url}...")
 
-        async with stdio_client(server_params) as (read, write):
-            self.session = ClientSession(read, write)
-            await self.session.initialize()
+        if self.mode == "stdio":
+            # Stdio mode: start server as subprocess
+            server_params = StdioServerParameters(
+                command=self.command,
+                args=self.args,
+            )
+            async with stdio_client(server_params) as (read, write):
+                self.session = ClientSession(read, write)
+                await self.session.initialize()
+        else:
+            # SSE mode: connect to already running server
+            async with sse_client(self.sse_url) as (read, write):
+                self.session = ClientSession(read, write)
+                await self.session.initialize()
 
-            # List available tools
-            response = await self.session.list_tools()
-            print(f"Connected to MCP server")
-            print(f"Available tools: {[tool.name for tool in response.tools]}")
+        # List available tools
+        response = await self.session.list_tools()
+        print(f"Connected to MCP server ({self.mode} mode)")
+        print(f"Available tools: {[tool.name for tool in response.tools]}")
 
     async def disconnect(self):
         """Disconnect from the MCP server."""
@@ -69,12 +97,25 @@ class MCPTestClient:
         if not self.session:
             raise RuntimeError("Not connected to MCP server")
 
-        result = await self.session.call_tool(tool_name, arguments)
+        print(f"Calling tool: {tool_name}")
+
+        # Use asyncio.wait_for to add timeout
+        try:
+            result = await asyncio.wait_for(
+                self.session.call_tool(tool_name, arguments), timeout=self._tool_timeout
+            )
+        except asyncio.TimeoutError:
+            print(f"Tool call timed out after {self._tool_timeout} seconds")
+            return {"error": "timeout"}
 
         # Parse the result text
         if result.content:
             text_content = result.content[0].text
-            return json.loads(text_content)
+            try:
+                return json.loads(text_content)
+            except json.JSONDecodeError:
+                print(f"Failed to parse JSON: {text_content[:200]}")
+                return {"raw": text_content}
 
         return {}
 
@@ -226,14 +267,31 @@ async def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="MCP Test Client")
-    parser.add_argument("--command", default="uv", help="Command to run MCP server")
+    parser.add_argument(
+        "--mode",
+        choices=["sse", "stdio"],
+        default="sse",
+        help="Connection mode: sse (connect to running server) or stdio (auto-start server)",
+    )
+    parser.add_argument(
+        "--url",
+        default="http://localhost:8000/sse",
+        help="SSE server URL (for SSE mode)",
+    )
+    parser.add_argument(
+        "--command", default="uv", help="Command to run MCP server (for stdio mode)"
+    )
     parser.add_argument("--workflow", action="store_true", help="Run full LLM workflow")
     parser.add_argument("--tool", help="Call a specific tool")
     parser.add_argument("--args", default="{}", help="Tool arguments as JSON")
 
     args = parser.parse_args()
 
-    client = MCPTestClient(command=args.command)
+    client = MCPTestClient(
+        mode=args.mode,
+        sse_url=args.url,
+        command=args.command,
+    )
 
     try:
         await client.connect()
@@ -249,7 +307,15 @@ async def main():
         else:
             # Interactive mode
             print("MCP Test Client")
-            print("Commands:")
+            print("=" * 40)
+            print(f"Mode: {args.mode}")
+            if args.mode == "sse":
+                print(f"Server URL: {args.url}")
+                print("\nMake sure the server is running:")
+                print("  DEPLOYMENT=sse uv run rss-mcp")
+            else:
+                print("Server will be started automatically")
+            print("\nCommands:")
             print("  --workflow        Run full LLM workflow simulation")
             print("  --tool <name>     Call a specific tool")
             print("  --args <json>     Tool arguments")
