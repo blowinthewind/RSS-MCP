@@ -208,11 +208,12 @@ def run_sse():
     from starlette.responses import JSONResponse
     import uvicorn
 
+    # Setup MCP resources and prompts before creating app
+    setup_mcp_resources()
+    setup_mcp_prompts()
+
     # Create the FastAPI app with all routers
     app = create_app()
-
-    # Get the MCP HTTP app and mount it
-    mcp_app = mcp.http_app()
 
     @app.middleware("http")
     async def add_auth_middleware(request, call_next):
