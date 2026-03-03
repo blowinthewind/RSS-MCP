@@ -118,11 +118,19 @@ def create_app() -> FastAPI:
     Returns:
         Configured FastAPI application
     """
+    # For SSE mode, we need to handle MCP lifespan differently
+    if settings.deployment in ["sse", "auto"]:
+        mcp_app = mcp.http_app()
+        # Use MCP's lifespan which handles both MCP and our lifespan
+        app_lifespan = mcp_app.lifespan
+    else:
+        app_lifespan = lifespan
+
     app = FastAPI(
         title="RSS MCP Service",
         description="A MCP service for RSS feeds, designed for LLMs",
         version=settings.mcp_version,
-        lifespan=lifespan,
+        lifespan=app_lifespan,
     )
 
     # Include routers
@@ -164,12 +172,10 @@ def create_app() -> FastAPI:
         }
 
     # Mount MCP HTTP app for SSE mode
-    # Note: FastMCP's http_app() creates routes under /mcp path
+    # Note: Must use mount() to properly handle lifespan events
     if settings.deployment in ["sse", "auto"]:
-        mcp_app = mcp.http_app()
-        # Mount without path prefix since http_app already includes /mcp
-        for route in mcp_app.routes:
-            app.router.routes.append(route)
+        # Mount at root - http_app() already has /mcp route
+        app.mount("/", mcp_app)
 
     return app
 
