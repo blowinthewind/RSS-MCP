@@ -4,12 +4,14 @@ This module provides MCP tools for RSS feed operations, designed for LLM usage.
 """
 
 import logging
+import re
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastmcp import FastMCP
 
 from app.config import settings
-from app.database import SessionLocal
+from app.database import get_db_session
 from app.models import Source, Article
 from app.services.rss_fetcher import fetch_feed
 from app.services.content_extract import extract_content
@@ -40,8 +42,7 @@ def list_sources(
     Returns:
         List of sources with their IDs, names, and tags
     """
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         query = db.query(Source)
 
         if tags:
@@ -69,8 +70,39 @@ def list_sources(
             ],
             "total": len(sources),
         }
-    finally:
-        db.close()
+
+
+def validate_url(url: str) -> tuple[bool, str]:
+    """
+    Validate URL format.
+
+    Args:
+        url: URL string to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not url or not url.strip():
+        return False, "URL cannot be empty"
+
+    url = url.strip()
+
+    try:
+        result = urlparse(url)
+        if not all([result.scheme, result.netloc]):
+            return False, "Invalid URL format: must include scheme (http/https) and domain"
+
+        if result.scheme not in ["http", "https"]:
+            return False, f"Invalid URL scheme: {result.scheme}. Only http and https are allowed"
+
+        # Basic domain validation
+        domain = result.netloc.lower()
+        if not domain or "." not in domain:
+            return False, "Invalid domain in URL"
+
+        return True, ""
+    except Exception as e:
+        return False, f"URL validation error: {str(e)}"
 
 
 @mcp.tool()
@@ -92,8 +124,29 @@ def add_source(
     Returns:
         Created source information
     """
-    db = SessionLocal()
-    try:
+    # Validate URL format
+    is_valid, error_msg = validate_url(url)
+    if not is_valid:
+        return {
+            "success": False,
+            "message": error_msg,
+        }
+
+    # Validate name
+    if not name or not name.strip():
+        return {
+            "success": False,
+            "message": "Source name cannot be empty",
+        }
+
+    # Validate fetch_interval
+    if fetch_interval < 60:
+        return {
+            "success": False,
+            "message": "Fetch interval must be at least 60 seconds",
+        }
+
+    with get_db_session() as db:
         # Check if URL already exists
         existing = db.query(Source).filter(Source.url == url).first()
         if existing:
@@ -104,12 +157,12 @@ def add_source(
             }
 
         # Parse tags
-        tag_list = [t.strip() for t in tags.split(",")] if tags else []
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
 
         # Create source
         source = Source(
-            name=name,
-            url=url,
+            name=name.strip(),
+            url=url.strip(),
             tags=tag_list,
             fetch_interval=fetch_interval,
         )
@@ -141,8 +194,6 @@ def add_source(
             "source_id": source.id,
             "tags": source.tags,
         }
-    finally:
-        db.close()
 
 
 @mcp.tool()
@@ -271,6 +322,25 @@ def get_feed_items(
         db.close()
 
 
+def escape_like_pattern(pattern: str) -> str:
+    """
+    Escape special characters in LIKE pattern.
+
+    SQL LIKE special characters:
+    - % matches any sequence of characters
+    - _ matches any single character
+    - \ is the escape character
+
+    Args:
+        pattern: Raw search pattern
+
+    Returns:
+        Escaped pattern safe for LIKE queries
+    """
+    # Escape backslash first, then % and _
+    return pattern.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 @mcp.tool()
 def search_feeds(
     query: str,
@@ -293,24 +363,40 @@ def search_feeds(
     Returns:
         List of matching articles with content
     """
-    db = SessionLocal()
-    try:
+    # Validate and sanitize query
+    if not query or not query.strip():
+        return {
+            "query": "",
+            "items": [],
+            "total": 0,
+            "returned": 0,
+            "message": "Search query cannot be empty",
+        }
+
+    # Limit query length to prevent abuse
+    max_query_length = 200
+    if len(query) > max_query_length:
+        query = query[:max_query_length]
+
+    with get_db_session() as db:
         # Build query
         q = db.query(Article).join(Source).filter(Source.enabled == True)
 
         # Filter by source IDs
         if sources:
-            source_list = [s.strip() for s in sources.split(",")]
-            q = q.filter(Article.source_id.in_(source_list))
+            source_list = [s.strip() for s in sources.split(",") if s.strip()]
+            if source_list:
+                q = q.filter(Article.source_id.in_(source_list))
 
         # Filter by tags
         if tags:
-            tag_list = [t.strip() for t in tags.split(",")]
+            tag_list = [t.strip() for t in tags.split(",") if t.strip()]
             for tag in tag_list:
                 q = q.filter(Source.tags.contains(tag))
 
-        # Apply search filter
-        search_term = f"%{query}%"
+        # Apply search filter with escaped special characters
+        escaped_query = escape_like_pattern(query.strip())
+        search_term = f"%{escaped_query}%"
         q = q.filter(
             Article.title.ilike(search_term)
             | Article.summary.ilike(search_term)
@@ -347,8 +433,6 @@ def search_feeds(
             "total": total,
             "returned": len(articles),
         }
-    finally:
-        db.close()
 
 
 @mcp.tool()

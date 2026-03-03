@@ -4,8 +4,10 @@ This module provides SQLAlchemy engine and session factory for database operatio
 Supports both SQLite and PostgreSQL databases.
 """
 
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.pool import StaticPool
 
 from app.config import get_database_url, settings
@@ -78,3 +80,29 @@ def init_db():
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+
+
+@contextmanager
+def get_db_session():
+    """
+    Context manager for database sessions.
+
+    Provides a safe way to handle database sessions with automatic cleanup.
+    Use this for non-FastAPI contexts (e.g., background tasks, MCP tools).
+
+    Yields:
+        Session: SQLAlchemy database session
+
+    Example:
+        with get_db_session() as db:
+            result = db.query(Model).all()
+    """
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
