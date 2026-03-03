@@ -33,13 +33,19 @@ def load_preset_sources() -> int:
     """
     Load preset sources from JSON file.
 
-    Only loads sources that don't already exist in the database.
+    Only loads sources on first run (when database is empty).
 
     Returns:
         Number of sources loaded
     """
     db = SessionLocal()
     try:
+        # Check if any sources already exist (skip on subsequent runs)
+        existing_count = db.query(Source).count()
+        if existing_count > 0:
+            logger.debug("Preset sources already loaded, skipping")
+            return 0
+
         # Get preset sources file path
         preset_path = get_preset_sources_path()
 
@@ -54,12 +60,6 @@ def load_preset_sources() -> int:
         sources_added = 0
 
         for preset in presets.get("sources", []):
-            # Check if source already exists (by URL)
-            existing = db.query(Source).filter(Source.url == preset["url"]).first()
-
-            if existing:
-                continue
-
             # Create new source
             source = Source(
                 name=preset["name"],
@@ -74,7 +74,7 @@ def load_preset_sources() -> int:
         db.commit()
 
         if sources_added > 0:
-            logger.info(f"Loaded {sources_added} preset sources")
+            logger.info(f"Loaded {sources_added} preset sources on first run")
 
         return sources_added
 
