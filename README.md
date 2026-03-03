@@ -156,7 +156,7 @@ Or use SSE mode (start server first with `DEPLOYMENT=sse uv run rss-mcp`):
 | Field | Value |
 |-------|-------|
 | Type | Server-Sent Events (SSE) |
-| URL | http://localhost:8000/sse |
+| URL | http://localhost:8000/mcp |
 
 ### Claude Desktop
 
@@ -181,7 +181,7 @@ Add to Cursor settings (MCP configuration):
 {
   "mcpServers": {
     "rss-reader": {
-      "url": "http://localhost:8000/sse"
+      "url": "http://localhost:8000/mcp"
     }
   }
 }
