@@ -6,6 +6,7 @@ using APScheduler.
 
 import logging
 from datetime import datetime
+from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -58,13 +59,21 @@ class Scheduler:
             logger.info("Running initial fetch immediately...")
             self.fetch_all_sources()
 
-    def stop(self):
-        """Stop the scheduler."""
+    def stop(self, wait: bool = False, timeout: Optional[int] = 10):
+        """Stop the scheduler.
+
+        Args:
+            wait: If True, wait for jobs to complete. If False, shutdown immediately.
+            timeout: Seconds to wait for jobs to complete (None = wait forever).
+        """
         if not self.scheduler.running:
             return
 
-        self.scheduler.shutdown()
-        logger.info("Scheduler stopped")
+        try:
+            self.scheduler.shutdown(wait=wait, timeout=timeout)
+            logger.info(f"Scheduler stopped (wait={wait}, timeout={timeout})")
+        except Exception as e:
+            logger.error(f"Error stopping scheduler: {e}")
 
     def fetch_all_sources(self):
         """
@@ -171,9 +180,14 @@ def start_scheduler():
     scheduler.start()
 
 
-def stop_scheduler():
-    """Stop the global scheduler."""
-    scheduler.stop()
+def stop_scheduler(wait: bool = False, timeout: Optional[int] = 10):
+    """Stop the global scheduler.
+
+    Args:
+        wait: If True, wait for jobs to complete. If False, shutdown immediately.
+        timeout: Seconds to wait for jobs to complete.
+    """
+    scheduler.stop(wait=wait, timeout=timeout)
 
 
 def refresh_source(source_id: str) -> bool:
