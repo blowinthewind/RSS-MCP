@@ -55,10 +55,17 @@ class Settings(BaseSettings):
         default=False,
         description="Enable API key authentication for remote mode",
     )
-    api_keys: list[str] = Field(
-        default_factory=list,
-        description="List of allowed API keys for authentication",
+    api_keys: str = Field(
+        default="",
+        description="Comma-separated list of allowed API keys for authentication",
     )
+    
+    @property
+    def api_keys_list(self) -> list[str]:
+        """Get API keys as a list."""
+        if not self.api_keys:
+            return []
+        return [k.strip() for k in self.api_keys.split(",") if k.strip()]
 
     # RSS fetching configuration
     default_fetch_interval: int = Field(

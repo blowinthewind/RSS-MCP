@@ -176,11 +176,63 @@ def run_sse():
     Run MCP server in SSE mode.
 
     This is used for remote MCP client connections.
+    Supports optional API key authentication.
     """
+    from starlette.responses import JSONResponse
+
+    # Import the MCP HTTP app - uses /mcp path
+    mcp_app = mcp.http_app()
+
+    async def protected_mcp_app(scope, receive, send):
+        """Wrapper that adds authentication to MCP app."""
+        # Skip auth if not enabled
+        if not settings.auth_enabled:
+            await mcp_app(scope, receive, send)
+            return
+
+        # Parse the path
+        path = scope.get("path", "/")
+
+        # Skip auth for health check (but NOT for /mcp - that needs auth)
+        if path in ["/health", "/"]:
+            await mcp_app(scope, receive, send)
+            return
+
+        # All other paths (including /mcp) require auth
+        # Check API key
+        headers = dict(scope.get("headers", []))
+        auth_header = headers.get(b"authorization", b"").decode("utf-8")
+
+        if not auth_header:
+            response = JSONResponse(
+                status_code=401, content={"error": "Missing Authorization header"}
+            )
+            await response(scope, receive, send)
+            return
+
+        # Extract Bearer token
+        parts = auth_header.split(" ")
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            response = JSONResponse(
+                status_code=401,
+                content={"error": "Invalid Authorization header format. Use: Bearer <api_key>"},
+            )
+            await response(scope, receive, send)
+            return
+
+        api_key = parts[1]
+        if api_key not in settings.api_keys_list:
+            response = JSONResponse(status_code=401, content={"error": "Invalid API key"})
+            await response(scope, receive, send)
+            return
+
+        # Auth passed, forward to MCP app
+        await mcp_app(scope, receive, send)
+
+    # Run with uvicorn using the wrapped app
     import uvicorn
 
-    # Use FastMCP's built-in SSE support
-    mcp.run(transport="sse", host=settings.host, port=settings.port)
+    uvicorn.run(protected_mcp_app, host=settings.host, port=settings.port)
 
 
 def main():
