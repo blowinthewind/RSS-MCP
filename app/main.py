@@ -10,9 +10,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import init_db
+from app.database import init_db, get_db
+from app.models import Source, Article
 from app.mcp.tools import mcp
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.routers import sources_router, feeds_router, search_router, articles_router
@@ -90,9 +93,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to load preset sources: {e}")
 
-    # Start scheduler
+    # Start scheduler (without initial fetch to avoid blocking)
     try:
-        start_scheduler()
+        from app.services.scheduler import scheduler
+
+        scheduler.start(run_immediately=False)
     except Exception as e:
         logger.warning(f"Failed to start scheduler: {e}")
 
@@ -140,6 +145,22 @@ def create_app() -> FastAPI:
             "service": "RSS MCP Service",
             "version": settings.mcp_version,
             "mcp_endpoint": "/mcp" if settings.deployment in ["auto", "sse"] else None,
+        }
+
+    # Stats endpoint for frontend
+    @app.get("/api/stats")
+    async def get_stats(db: Session = Depends(get_db)):
+        """Get service statistics for frontend."""
+        total_sources = db.query(Source).count()
+        total_articles = db.query(Article).count()
+
+        return {
+            "mcp_name": "RSS MCP Service",
+            "mcp_version": settings.mcp_version,
+            "deployment": settings.deployment,
+            "auth_enabled": settings.auth_enabled,
+            "total_sources": total_sources,
+            "total_articles": total_articles,
         }
 
     return app
