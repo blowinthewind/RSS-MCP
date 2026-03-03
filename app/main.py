@@ -163,6 +163,11 @@ def create_app() -> FastAPI:
             "total_articles": total_articles,
         }
 
+    # Mount MCP HTTP app for SSE mode
+    if settings.deployment in ["sse", "auto"]:
+        mcp_app = mcp.http_app()
+        app.mount("/mcp", mcp_app)
+
     return app
 
 
@@ -198,62 +203,50 @@ def run_sse():
 
     This is used for remote MCP client connections.
     Supports optional API key authentication.
+    Uses the FastAPI app with both REST API and MCP endpoints.
     """
     from starlette.responses import JSONResponse
+    import uvicorn
 
-    # Import the MCP HTTP app - uses /mcp path
+    # Create the FastAPI app with all routers
+    app = create_app()
+
+    # Get the MCP HTTP app and mount it
     mcp_app = mcp.http_app()
 
-    async def protected_mcp_app(scope, receive, send):
-        """Wrapper that adds authentication to MCP app."""
+    @app.middleware("http")
+    async def add_auth_middleware(request, call_next):
+        """Add authentication to MCP endpoints."""
         # Skip auth if not enabled
         if not settings.auth_enabled:
-            await mcp_app(scope, receive, send)
-            return
+            return await call_next(request)
 
-        # Parse the path
-        path = scope.get("path", "/")
+        # Skip auth for health, root, and API routes
+        if request.url.path in ["/health", "/"] or request.url.path.startswith("/api"):
+            return await call_next(request)
 
-        # Skip auth for health check (but NOT for /mcp - that needs auth)
-        if path in ["/health", "/"]:
-            await mcp_app(scope, receive, send)
-            return
-
-        # All other paths (including /mcp) require auth
-        # Check API key
-        headers = dict(scope.get("headers", []))
-        auth_header = headers.get(b"authorization", b"").decode("utf-8")
+        # Check API key for /mcp and other paths
+        auth_header = request.headers.get("authorization", "")
 
         if not auth_header:
-            response = JSONResponse(
-                status_code=401, content={"error": "Missing Authorization header"}
-            )
-            await response(scope, receive, send)
-            return
+            return JSONResponse(status_code=401, content={"error": "Missing Authorization header"})
 
         # Extract Bearer token
         parts = auth_header.split(" ")
         if len(parts) != 2 or parts[0].lower() != "bearer":
-            response = JSONResponse(
+            return JSONResponse(
                 status_code=401,
                 content={"error": "Invalid Authorization header format. Use: Bearer <api_key>"},
             )
-            await response(scope, receive, send)
-            return
 
         api_key = parts[1]
         if api_key not in settings.api_keys_list:
-            response = JSONResponse(status_code=401, content={"error": "Invalid API key"})
-            await response(scope, receive, send)
-            return
+            return JSONResponse(status_code=401, content={"error": "Invalid API key"})
 
-        # Auth passed, forward to MCP app
-        await mcp_app(scope, receive, send)
+        return await call_next(request)
 
-    # Run with uvicorn using the wrapped app
-    import uvicorn
-
-    uvicorn.run(protected_mcp_app, host=settings.host, port=settings.port)
+    # Run with uvicorn
+    uvicorn.run(app, host=settings.host, port=settings.port)
 
 
 def main():
