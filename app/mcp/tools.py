@@ -199,7 +199,7 @@ def add_source(
 @mcp.tool()
 def remove_source(source_id: str) -> dict:
     """
-    Remove an RSS source and all its articles.
+    Remove an RSS source.
 
     Args:
         source_id: ID of the source to remove
@@ -207,8 +207,7 @@ def remove_source(source_id: str) -> dict:
     Returns:
         Success message
     """
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         source = db.query(Source).filter(Source.id == source_id).first()
         if not source:
             return {
@@ -218,14 +217,11 @@ def remove_source(source_id: str) -> dict:
 
         source_name = source.name
         db.delete(source)
-        db.commit()
 
         return {
             "success": True,
             "message": f"Source '{source_name}' removed successfully",
         }
-    finally:
-        db.close()
 
 
 @mcp.tool()
@@ -240,8 +236,7 @@ def enable_source(source_id: str, enabled: bool = True) -> dict:
     Returns:
         Success message
     """
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         source = db.query(Source).filter(Source.id == source_id).first()
         if not source:
             return {
@@ -250,14 +245,11 @@ def enable_source(source_id: str, enabled: bool = True) -> dict:
             }
 
         source.enabled = enabled
-        db.commit()
 
         return {
             "success": True,
             "message": f"Source '{source.name}' {'enabled' if enabled else 'disabled'}",
         }
-    finally:
-        db.close()
 
 
 @mcp.tool()
@@ -277,8 +269,7 @@ def get_feed_items(
     Returns:
         List of articles with title, summary, URL, and published date
     """
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         # Check if source exists
         source = db.query(Source).filter(Source.id == source_id).first()
         if not source:
@@ -318,8 +309,6 @@ def get_feed_items(
             "offset": offset,
             "limit": limit,
         }
-    finally:
-        db.close()
 
 
 def escape_like_pattern(pattern: str) -> str:
@@ -446,8 +435,7 @@ def get_article_content(article_id: str) -> dict:
     Returns:
         Article with full content
     """
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         article = db.query(Article).filter(Article.id == article_id).first()
         if not article:
             return {
@@ -461,7 +449,6 @@ def get_article_content(article_id: str) -> dict:
                 content = extract_content(article.url)
                 if content:
                     article.content = content
-                    db.commit()
             except Exception as e:
                 logger.warning(f"Failed to extract content: {e}")
 
@@ -481,8 +468,6 @@ def get_article_content(article_id: str) -> dict:
                 "published": article.published.isoformat() if article.published else None,
             },
         }
-    finally:
-        db.close()
 
 
 @mcp.tool()
@@ -496,30 +481,24 @@ def refresh_source(source_id: str) -> dict:
     Returns:
         Number of new articles fetched
     """
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         source = db.query(Source).filter(Source.id == source_id).first()
         if not source:
             return {
                 "success": False,
                 "message": f"Source {source_id} not found",
             }
-    finally:
-        db.close()
 
     success = do_refresh(source_id)
 
     if success:
         # Get count of new articles
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             count = db.query(Article).filter(Article.source_id == source_id).count()
             return {
                 "success": True,
                 "message": f"Source refreshed, {count} total articles",
             }
-        finally:
-            db.close()
     else:
         return {
             "success": False,
