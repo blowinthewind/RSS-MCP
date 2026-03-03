@@ -164,9 +164,12 @@ def create_app() -> FastAPI:
         }
 
     # Mount MCP HTTP app for SSE mode
+    # Note: FastMCP's http_app() creates routes under /mcp path
     if settings.deployment in ["sse", "auto"]:
         mcp_app = mcp.http_app()
-        app.mount("/mcp", mcp_app)
+        # Mount without path prefix since http_app already includes /mcp
+        for route in mcp_app.routes:
+            app.router.routes.append(route)
 
     return app
 
