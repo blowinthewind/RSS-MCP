@@ -22,3 +22,6 @@ build/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+
+# IDEs
+.trae
