@@ -44,23 +44,102 @@ export interface Stats {
   total_articles: number;
 }
 
+export interface ApiError {
+  detail: string;
+  message?: string;
+}
+
 const API_BASE = '/api';
 
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
+class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public data?: unknown
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+// Request interceptor
+async function requestInterceptor(
+  endpoint: string,
+  options?: RequestInit
+): Promise<{ endpoint: string; options: RequestInit }> {
+  const defaultOptions: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
+    },
+  };
+
+  const mergedOptions: RequestInit = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
       ...options?.headers,
     },
-  });
-  
+  };
+
+  return { endpoint, options: mergedOptions };
+}
+
+// Response interceptor
+async function responseInterceptor<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || 'Request failed');
+    let errorMessage = 'Request failed';
+    let errorData: unknown;
+
+    try {
+      errorData = await response.json();
+      errorMessage = (errorData as ApiError).detail || (errorData as ApiError).message || errorMessage;
+    } catch {
+      errorMessage = response.statusText || errorMessage;
+    }
+
+    throw new ApiError(errorMessage, response.status, errorData);
   }
-  
+
+  // Handle empty responses
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
+}
+
+// Error handler
+function errorHandler(error: unknown): never {
+  if (error instanceof ApiError) {
+    console.error(`API Error (${error.status}):`, error.message);
+    throw error;
+  }
+
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    console.error('Network error: Unable to connect to server');
+    throw new ApiError('Network error: Please check your connection', 0);
+  }
+
+  console.error('Unexpected error:', error);
+  throw new ApiError('An unexpected error occurred', 500);
+}
+
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  try {
+    // Apply request interceptor
+    const { endpoint: processedEndpoint, options: processedOptions } = await requestInterceptor(
+      endpoint,
+      options
+    );
+
+    const response = await fetch(`${API_BASE}${processedEndpoint}`, processedOptions);
+
+    // Apply response interceptor
+    return await responseInterceptor<T>(response);
+  } catch (error) {
+    return errorHandler(error);
+  }
 }
 
 export const sourcesApi = {
@@ -71,21 +150,22 @@ export const sourcesApi = {
     const query = searchParams.toString();
     return fetchApi<SourceListResponse>(`/sources${query ? `?${query}` : ''}`);
   },
-  
+
   get: (id: string) => fetchApi<Source>(`/sources/${id}`),
-  
+
   create: (data: { name: string; url: string; tags?: string[]; fetch_interval?: number }) =>
     fetchApi<Source>('/sources', { method: 'POST', body: JSON.stringify(data) }),
-  
+
   update: (id: string, data: Partial<Source>) =>
     fetchApi<Source>(`/sources/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  
+
   delete: (id: string) => fetchApi<void>(`/sources/${id}`, { method: 'DELETE' }),
-  
+
   enable: (id: string, enabled: boolean) =>
     fetchApi<void>(`/sources/${id}/enable?enabled=${enabled}`, { method: 'POST' }),
-  
-  refresh: (id: string) => fetchApi<{ success: boolean; message: string }>(`/sources/${id}/refresh`, { method: 'POST' }),
+
+  refresh: (id: string) =>
+    fetchApi<{ success: boolean; message: string }>(`/sources/${id}/refresh`, { method: 'POST' }),
 };
 
 export const articlesApi = {
@@ -97,8 +177,14 @@ export const articlesApi = {
     const query = searchParams.toString();
     return fetchApi<ArticleListResponse>(`/feeds${query ? `?${query}` : ''}`);
   },
-  
-  search: (params: { q: string; sources?: string; tags?: string; limit?: number; offset?: number }) => {
+
+  search: (params: {
+    q: string;
+    sources?: string;
+    tags?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const searchParams = new URLSearchParams();
     searchParams.set('q', params.q);
     if (params.sources) searchParams.set('sources', params.sources);
@@ -107,10 +193,12 @@ export const articlesApi = {
     if (params.offset) searchParams.set('offset', String(params.offset));
     return fetchApi<ArticleListResponse>(`/search?${searchParams}`);
   },
-  
+
   get: (id: string) => fetchApi<Article>(`/articles/${id}`),
 };
 
 export const statsApi = {
   get: () => fetchApi<Stats>('/'),
 };
+
+export { ApiError };
