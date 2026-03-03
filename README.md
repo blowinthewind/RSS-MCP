@@ -46,6 +46,34 @@ DEPLOYMENT=stdio uv run rss-mcp  # Local stdio mode
 DEPLOYMENT=sse uv run rss-mcp    # Remote SSE mode
 ```
 
+### Authentication (SSE Mode)
+
+When deploying in SSE mode, you can enable API key authentication:
+
+```bash
+# Enable authentication with API key
+AUTH_ENABLED=true API_KEYS=your-api-key,another-key DEPLOYMENT=sse uv run rss-mcp
+```
+
+**Environment Variables:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AUTH_ENABLED` | Enable API key authentication (true/false) | false |
+| `API_KEYS` | Comma-separated list of API keys | (none) |
+
+**Client Usage:**
+
+```bash
+# With curl
+curl -H "Authorization: Bearer your-api-key" http://localhost:8000/mcp
+
+# In Cherry Studio SSE mode
+# Add header: Authorization: Bearer your-api-key
+```
+
+**Note:** Authentication is only applied in SSE mode. STDIO mode does not support authentication.
+
 ### Docker Deployment
 
 ```bash
