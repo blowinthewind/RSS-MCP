@@ -5,7 +5,7 @@ Supports both environment variables and .env file configuration.
 """
 
 import os
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # auto: automatically detect deployment mode
     # stdio: local stdio mode for MCP
     # sse: remote HTTP SSE mode
-    deployment: str = Field(
+    deployment: Literal["auto", "stdio", "sse"] = Field(
         default="auto",
         description="Deployment mode: auto/stdio/sse",
     )
