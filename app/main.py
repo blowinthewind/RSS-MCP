@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi import Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -131,6 +132,15 @@ def create_app() -> FastAPI:
         description="A MCP service for RSS feeds, designed for LLMs",
         version=settings.mcp_version,
         lifespan=app_lifespan,
+    )
+
+    # Add CORS middleware for MCP Inspector and frontend access
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Allow all origins for development
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # Include routers
