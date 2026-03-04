@@ -25,3 +25,6 @@ frontend/.vite/
 
 # IDEs
 .trae
+
+# Scripts
+scripts/
