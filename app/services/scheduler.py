@@ -11,7 +11,7 @@ from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from app.database import SessionLocal
+from app.database import get_db_session
 from app.models import Source
 from app.services.rss_fetcher import fetch_feed
 from app.services.content_extract import extract_content
@@ -83,8 +83,7 @@ class Scheduler:
         """
         logger.info("Starting scheduled fetch of all sources")
 
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             sources = db.query(Source).filter(Source.enabled == True).all()
 
             for source in sources:
@@ -93,14 +92,7 @@ class Scheduler:
                 except Exception as e:
                     logger.error(f"Error fetching source {source.name}: {e}")
 
-            db.commit()
             logger.info("Scheduled fetch completed")
-
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error in scheduled fetch: {e}")
-        finally:
-            db.close()
 
     def _fetch_source(self, db, source: Source):
         """
@@ -152,23 +144,19 @@ class Scheduler:
         Args:
             source_id: ID of the source to refresh
         """
-        db = SessionLocal()
         try:
-            source = db.query(Source).filter(Source.id == source_id).first()
-            if not source:
-                logger.warning(f"Source {source_id} not found")
-                return False
+            with get_db_session() as db:
+                source = db.query(Source).filter(Source.id == source_id).first()
+                if not source:
+                    logger.warning(f"Source {source_id} not found")
+                    return False
 
-            self._fetch_source(db, source)
-            db.commit()
-            return True
+                self._fetch_source(db, source)
+                return True
 
         except Exception as e:
-            db.rollback()
             logger.error(f"Error refreshing source {source_id}: {e}")
             return False
-        finally:
-            db.close()
 
 
 # Global scheduler instance
