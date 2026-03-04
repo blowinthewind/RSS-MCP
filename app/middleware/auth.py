@@ -82,4 +82,4 @@ def check_api_key(api_key: Optional[str]) -> bool:
     if not api_key:
         return False
 
-    return api_key in settings.api_keys
+    return api_key in settings.api_keys_list
