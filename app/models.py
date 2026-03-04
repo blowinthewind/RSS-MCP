@@ -123,10 +123,11 @@ class Article(Base):
         nullable=False,
     )
 
-    # Original article URL
+    # Original article URL - indexed for deduplication checks
     url: Mapped[str] = mapped_column(
         String(2048),
         nullable=False,
+        index=True,
     )
 
     # Article summary/description
