@@ -16,6 +16,25 @@ from app.schemas import ArticleResponse, ArticleListResponse, SearchResponse
 
 logger = logging.getLogger(__name__)
 
+
+def escape_like_pattern(pattern: str) -> str:
+    """
+    Escape special characters in LIKE pattern.
+
+    SQL LIKE special characters:
+    - % matches any sequence of characters
+    - _ matches any single character
+    - \ is the escape character
+
+    Args:
+        pattern: Raw search pattern
+
+    Returns:
+        Escaped pattern safe for LIKE queries
+    """
+    # Escape backslash first, then % and _
+    return pattern.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
 # Create router
 router = APIRouter(prefix="/api/search", tags=["search"])
 
@@ -53,7 +72,9 @@ def search_articles(
             query = query.filter(Source.tags.contains(tag))
 
     # Apply search filter (case-insensitive)
-    search_term = f"%{q}%"
+    # Escape special characters to prevent SQL LIKE injection
+    escaped_q = escape_like_pattern(q)
+    search_term = f"%{escaped_q}%"
     query = query.filter(
         Article.title.ilike(search_term)
         | Article.summary.ilike(search_term)
