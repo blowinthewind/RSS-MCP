@@ -142,14 +142,22 @@ def get_config() -> str:
         total_sources = db.query(Source).count()
         total_articles = db.query(Article).count()
 
+        # Mask sensitive information in database URL
+        db_url = settings.database_url
+        if "@" in db_url:
+            # PostgreSQL format: postgresql://user:pass@host/db
+            db_url = db_url.split("@")[-1]
+        elif db_url.startswith("sqlite://"):
+            # SQLite format: sqlite:///path/to/db - only show filename
+            db_path = db_url.replace("sqlite:///", "").replace("sqlite://", "")
+            db_url = f"sqlite:///{db_path.split('/')[-1]}"
+
         result = {
             "mcp_name": settings.mcp_name,
             "mcp_version": settings.mcp_version,
             "deployment": settings.deployment,
             "auth_enabled": settings.auth_enabled,
-            "database_url": settings.database_url.split("@")[-1]
-            if "@" in settings.database_url
-            else settings.database_url,  # Hide credentials
+            "database_url": db_url,
             "default_fetch_interval": settings.default_fetch_interval,
             "enable_content_extraction": settings.enable_content_extraction,
             "stats": {
