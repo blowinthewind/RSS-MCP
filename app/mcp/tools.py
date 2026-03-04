@@ -55,6 +55,14 @@ def list_sources(
 
         sources = query.all()
 
+        # Get article counts in a single query to avoid N+1
+        from sqlalchemy import func
+        article_counts = dict(
+            db.query(Article.source_id, func.count(Article.id))
+            .group_by(Article.source_id)
+            .all()
+        )
+
         return {
             "sources": [
                 {
@@ -64,7 +72,7 @@ def list_sources(
                     "tags": s.tags,
                     "enabled": s.enabled,
                     "last_fetched": s.last_fetched.isoformat() if s.last_fetched else None,
-                    "article_count": len(s.articles),
+                    "article_count": article_counts.get(s.id, 0),
                 }
                 for s in sources
             ],
