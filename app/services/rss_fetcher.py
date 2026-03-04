@@ -6,7 +6,7 @@ Handles parsing of various RSS and Atom feed formats.
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import feedparser
@@ -216,7 +216,7 @@ def fetch_all_enabled_sources() -> int:
                         total_articles += 1
 
                 # Update last_fetched timestamp
-                source.last_fetched = datetime.utcnow()
+                source.last_fetched = datetime.now(timezone.utc)
 
             return total_articles
 

@@ -4,7 +4,7 @@ Defines SQLAlchemy ORM models for Source and Article entities.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import String, Text, Integer, Boolean, DateTime, ForeignKey, JSON
@@ -16,6 +16,11 @@ from app.database import Base
 def generate_id() -> str:
     """Generate a unique ID using UUID4."""
     return uuid.uuid4().hex[:12]
+
+
+def utc_now() -> datetime:
+    """Get current UTC time."""
+    return datetime.now(timezone.utc)
 
 
 class Source(Base):
@@ -73,14 +78,14 @@ class Source(Base):
     # Creation timestamp
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
     )
 
     # Last update timestamp
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=utc_now,
+        onupdate=utc_now,
     )
 
     # Relationship to articles
@@ -157,7 +162,7 @@ class Article(Base):
     # When this article was fetched
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
     )
 
     # Relationship to source

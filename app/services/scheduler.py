@@ -5,7 +5,7 @@ using APScheduler.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -135,7 +135,7 @@ class Scheduler:
                         logger.warning(f"Failed to extract content: {e}")
 
         # Update last_fetched timestamp
-        source.last_fetched = datetime.utcnow()
+        source.last_fetched = datetime.now(timezone.utc)
 
     def refresh_source(self, source_id: str):
         """
