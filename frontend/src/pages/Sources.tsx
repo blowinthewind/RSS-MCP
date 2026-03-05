@@ -9,12 +9,15 @@ import { sourcesApi } from '@/api';
 import type { Source } from '@/api';
 import { Plus, RefreshCw, Trash2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 export default function Sources() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSource, setNewSource] = useState({ name: '', url: '', tags: '' });
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const navigate = useNavigate();
 
   const loadSources = () => {
@@ -56,11 +59,17 @@ export default function Sources() {
   };
 
   const handleRefresh = async (sourceId: string) => {
+    setRefreshingId(sourceId);
     try {
       await sourcesApi.refresh(sourceId);
-      loadSources();
+      await loadSources();
+      setToast({ message: 'Source refreshed successfully', type: 'success' });
+      setTimeout(() => setToast(null), 3000);
     } catch (err) {
-      console.error(err);
+      setToast({ message: 'Failed to refresh source', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setRefreshingId(null);
     }
   };
 
@@ -78,10 +87,19 @@ export default function Sources() {
 
   return (
     <>
-      <PageHeader
-        title="RSS Sources"
-        description="Manage RSS feed sources"
-      >
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={cn(
+            'fixed top-4 right-4 p-4 rounded-md text-white z-50',
+            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          )}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      <PageHeader title="RSS Sources" description="Manage RSS feed sources">
         <Button onClick={() => setShowAddForm(!showAddForm)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Source
@@ -166,32 +184,42 @@ export default function Sources() {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <span>{source.article_count || 0} articles</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRefresh(source.id)}
-                    title="Refresh"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => navigate(`/articles?source=${source.id}`)}
-                    title="View Articles"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(source.id)}
-                    title="Delete"
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <span>{source.article_count || 0} articles</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRefresh(source.id)}
+                      disabled={refreshingId === source.id}
+                      title="Refresh"
+                    >
+                      <RefreshCw
+                        className={cn('h-4 w-4', refreshingId === source.id && 'animate-spin')}
+                      />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigate(`/articles?source=${source.id}`)}
+                      title="View Articles"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(source.id)}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                  <span className="text-xs text-slate-400">
+                    {source.last_fetched
+                      ? `Last: ${new Date(source.last_fetched).toLocaleString()}`
+                      : 'Never fetched'}
+                  </span>
                 </div>
               </div>
             </CardContent>
