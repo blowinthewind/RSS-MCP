@@ -5,6 +5,7 @@ using APScheduler.
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -19,6 +20,9 @@ from app.config import settings
 
 
 logger = logging.getLogger(__name__)
+
+# Thread pool for running content extraction without blocking
+_content_extract_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="content-extract-")
 
 
 class Scheduler:
@@ -125,10 +129,12 @@ class Scheduler:
                 )
                 db.add(article)
 
-                # Extract content if enabled
+                # Extract content if enabled (run in thread pool to avoid blocking)
                 if settings.enable_content_extraction:
                     try:
-                        content = extract_content(article.url)
+                        content = _content_extract_executor.submit(
+                            extract_content, article.url
+                        ).result(timeout=30)
                         if content:
                             article.content = content
                     except Exception as e:
