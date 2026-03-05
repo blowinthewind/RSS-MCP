@@ -14,6 +14,7 @@ import {
 import { sourcesApi, articlesApi } from '@/api';
 import type { Source, Article } from '@/api';
 import { Search, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 export default function Articles() {
   const [sources, setSources] = useState<Source[]>([]);
@@ -238,10 +239,8 @@ export default function Articles() {
             {detailLoading ? (
               <div className="text-center py-8">Loading content...</div>
             ) : articleDetail?.content ? (
-              <div className="prose prose-slate max-w-none">
-                <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
-                  {articleDetail.content}
-                </div>
+              <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed">
+                <ReactMarkdown>{articleDetail.content}</ReactMarkdown>
               </div>
             ) : articleDetail?.summary ? (
               <div className="text-slate-600">

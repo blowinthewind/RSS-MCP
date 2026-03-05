@@ -54,12 +54,12 @@ class ContentExtractor:
                 response.raise_for_status()
                 html_content = response.text
 
-            # Extract content using trafilatura
+            # Extract content using trafilatura (markdown format for better readability)
             extracted = trafilatura.extract(
                 html_content,
                 include_comments=False,
                 include_tables=True,
-                output_format="text",
+                output_format="markdown",
             )
 
             if extracted:

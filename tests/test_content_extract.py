@@ -147,7 +147,7 @@ class TestContentExtractor:
             "<html><body>Content</body></html>",
             include_comments=False,
             include_tables=True,
-            output_format="text",
+            output_format="markdown",
         )
 
     @patch('app.services.content_extract.settings')
