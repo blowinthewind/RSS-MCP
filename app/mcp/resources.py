@@ -7,6 +7,8 @@ import json
 import logging
 from typing import Optional
 
+from sqlalchemy import func
+
 from app.config import settings
 from app.database import SessionLocal
 from app.models import Source, Article
@@ -26,6 +28,13 @@ def get_sources_list() -> str:
     try:
         sources = db.query(Source).all()
 
+        # Get article counts in a single query to avoid N+1
+        article_counts = dict(
+            db.query(Article.source_id, func.count(Article.id))
+            .group_by(Article.source_id)
+            .all()
+        )
+
         result = {
             "sources": [
                 {
@@ -34,7 +43,7 @@ def get_sources_list() -> str:
                     "url": s.url,
                     "tags": s.tags,
                     "enabled": s.enabled,
-                    "article_count": len(s.articles),
+                    "article_count": article_counts.get(s.id, 0),
                     "last_fetched": s.last_fetched.isoformat() if s.last_fetched else None,
                 }
                 for s in sources
@@ -55,11 +64,18 @@ def get_sources_by_tag(tag: str) -> str:
         tag: Tag to filter by
 
     Returns:
-        JSON string of filtered sources
+        JSON string of matching sources
     """
     db = SessionLocal()
     try:
         sources = db.query(Source).filter(Source.tags.contains([tag])).all()
+
+        # Get article counts in a single query to avoid N+1
+        article_counts = dict(
+            db.query(Article.source_id, func.count(Article.id))
+            .group_by(Article.source_id)
+            .all()
+        )
 
         result = {
             "tag": tag,
@@ -70,7 +86,7 @@ def get_sources_by_tag(tag: str) -> str:
                     "url": s.url,
                     "tags": s.tags,
                     "enabled": s.enabled,
-                    "article_count": len(s.articles),
+                    "article_count": article_counts.get(s.id, 0),
                 }
                 for s in sources
             ],
