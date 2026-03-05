@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { sourcesApi, articlesApi } from '@/api';
 import type { Source, Article } from '@/api';
-import { Search, ExternalLink, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Articles() {
   const [sources, setSources] = useState<Source[]>([]);
@@ -218,32 +218,20 @@ export default function Articles() {
       <Dialog open={!!selectedArticle} onOpenChange={handleCloseDialog}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden">
           <DialogHeader>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <DialogTitle className="text-xl leading-tight">
-                  {detailLoading ? selectedArticle?.title : articleDetail?.title}
-                </DialogTitle>
-                <DialogDescription className="mt-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Badge variant="secondary">
-                      {sourceMap[selectedArticle?.source_id || ''] || 'Unknown'}
-                    </Badge>
-                    {articleDetail?.published && (
-                      <span>{new Date(articleDetail.published).toLocaleString()}</span>
-                    )}
-                    {articleDetail?.author && <span>by {articleDetail.author}</span>}
-                  </div>
-                </DialogDescription>
+            <DialogTitle className="text-xl leading-tight">
+              {detailLoading ? selectedArticle?.title : articleDetail?.title}
+            </DialogTitle>
+            <DialogDescription className="mt-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant="secondary">
+                  {sourceMap[selectedArticle?.source_id || ''] || 'Unknown'}
+                </Badge>
+                {articleDetail?.published && (
+                  <span>{new Date(articleDetail.published).toLocaleString()}</span>
+                )}
+                {articleDetail?.author && <span>by {articleDetail.author}</span>}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCloseDialog}
-                className="shrink-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            </DialogDescription>
           </DialogHeader>
 
           <div className="mt-4 overflow-y-auto max-h-[60vh] pr-2">
