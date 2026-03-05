@@ -77,20 +77,29 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {sources.slice(0, 5).map((source) => (
-              <div
-                key={source.id}
-                className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0"
-              >
-                <div>
-                  <div className="font-medium">{source.name}</div>
-                  <div className="text-sm text-slate-500">{source.url}</div>
-                </div>
-                <div className="text-sm text-slate-500">
-                  {source.article_count || 0} articles
-                </div>
+            {sources.length === 0 ? (
+              <div className="text-center text-slate-500 py-4">
+                RSS sources are empty, please add sources first
               </div>
-            ))}
+            ) : (
+              sources
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, 5)
+                .map((source) => (
+                  <div
+                    key={source.id}
+                    className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0"
+                  >
+                    <div>
+                      <div className="font-medium">{source.name}</div>
+                      <div className="text-sm text-slate-500">{source.url}</div>
+                    </div>
+                    <div className="text-sm text-slate-500">
+                      {source.article_count || 0} articles
+                    </div>
+                  </div>
+                ))
+            )}
           </div>
         </CardContent>
       </Card>
