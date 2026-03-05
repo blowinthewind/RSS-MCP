@@ -4,9 +4,16 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { sourcesApi, articlesApi } from '@/api';
 import type { Source, Article } from '@/api';
-import { Search, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ExternalLink, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export default function Articles() {
   const [sources, setSources] = useState<Source[]>([]);
@@ -17,6 +24,9 @@ export default function Articles() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSource, setSelectedSource] = useState('');
   const [page, setPage] = useState(0);
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [articleDetail, setArticleDetail] = useState<Article | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const limit = 20;
 
   const loadSources = () => {
@@ -50,6 +60,24 @@ export default function Articles() {
     if (e.key === 'Enter') {
       handleSearch();
     }
+  };
+
+  const handleArticleClick = async (article: Article) => {
+    setSelectedArticle(article);
+    setDetailLoading(true);
+    try {
+      const detail = await articlesApi.get(article.id);
+      setArticleDetail(detail);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setSelectedArticle(null);
+    setArticleDetail(null);
   };
 
   useEffect(() => {
@@ -119,11 +147,17 @@ export default function Articles() {
           <div className="text-center py-12 text-slate-500">No articles found</div>
         ) : (
           articles.map((article) => (
-            <Card key={article.id}>
+            <Card
+              key={article.id}
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleArticleClick(article)}
+            >
               <CardContent className="py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold line-clamp-2">{article.title}</h3>
+                    <h3 className="font-semibold line-clamp-2 hover:text-blue-600 transition-colors">
+                      {article.title}
+                    </h3>
                     <div className="flex items-center gap-2 mt-2 text-sm text-slate-500">
                       <Badge variant="secondary">{sourceMap[article.source_id] || 'Unknown'}</Badge>
                       {article.published && (
@@ -142,8 +176,9 @@ export default function Articles() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" title="View original">
                       <ExternalLink className="h-4 w-4" />
                     </Button>
                   </a>
@@ -178,6 +213,77 @@ export default function Articles() {
           </Button>
         </div>
       )}
+
+      {/* Article Detail Dialog */}
+      <Dialog open={!!selectedArticle} onOpenChange={handleCloseDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <DialogTitle className="text-xl leading-tight">
+                  {detailLoading ? selectedArticle?.title : articleDetail?.title}
+                </DialogTitle>
+                <DialogDescription className="mt-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Badge variant="secondary">
+                      {sourceMap[selectedArticle?.source_id || ''] || 'Unknown'}
+                    </Badge>
+                    {articleDetail?.published && (
+                      <span>{new Date(articleDetail.published).toLocaleString()}</span>
+                    )}
+                    {articleDetail?.author && <span>by {articleDetail.author}</span>}
+                  </div>
+                </DialogDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseDialog}
+                className="shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="mt-4 overflow-y-auto max-h-[60vh] pr-2">
+            {detailLoading ? (
+              <div className="text-center py-8">Loading content...</div>
+            ) : articleDetail?.content ? (
+              <div className="prose prose-slate max-w-none">
+                <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+                  {articleDetail.content}
+                </div>
+              </div>
+            ) : articleDetail?.summary ? (
+              <div className="text-slate-600">
+                <p className="font-medium mb-2">Summary:</p>
+                <p>{articleDetail.summary}</p>
+                <p className="text-sm text-slate-400 mt-4">
+                  Full content not available. Click "View original" to read the full article.
+                </p>
+              </div>
+            ) : (
+              <div className="text-center text-slate-500 py-8">
+                No content available for this article.
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 pt-4 border-t flex justify-end">
+            <a
+              href={articleDetail?.url || selectedArticle?.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="outline">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Original
+              </Button>
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
