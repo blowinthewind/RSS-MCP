@@ -44,14 +44,14 @@ export interface Stats {
   total_articles: number;
 }
 
-export interface ApiError {
+export interface ApiErrorResponse {
   detail: string;
   message?: string;
 }
 
 const API_BASE = '/api';
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
@@ -93,7 +93,7 @@ async function responseInterceptor<T>(response: Response): Promise<T> {
 
     try {
       errorData = await response.json();
-      errorMessage = (errorData as ApiError).detail || (errorData as ApiError).message || errorMessage;
+      errorMessage = (errorData as ApiErrorResponse).detail || (errorData as ApiErrorResponse).message || errorMessage;
     } catch {
       errorMessage = response.statusText || errorMessage;
     }
@@ -198,7 +198,5 @@ export const articlesApi = {
 };
 
 export const statsApi = {
-  get: () => fetchApi<Stats>('/'),
+  get: () => fetchApi<Stats>('/stats'),
 };
-
-export { ApiError };
