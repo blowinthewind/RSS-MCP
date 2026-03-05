@@ -8,6 +8,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -88,6 +89,17 @@ def list_sources(
         query = query.filter(Source.enabled == enabled)
 
     sources = query.order_by(Source.created_at.desc()).all()
+
+    # Get article counts in a single query to avoid N+1
+    article_counts = dict(
+        db.query(Article.source_id, func.count(Article.id))
+        .group_by(Article.source_id)
+        .all()
+    )
+
+    # Add article_count to each source
+    for source in sources:
+        source.article_count = article_counts.get(source.id, 0)
 
     return SourceListResponse(
         sources=[SourceResponse.model_validate(s) for s in sources],

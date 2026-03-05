@@ -50,6 +50,7 @@ class SourceResponse(SourceBase):
     last_fetched: Optional[datetime] = Field(None, description="Last fetch timestamp")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
+    article_count: int = Field(0, description="Number of articles from this source")
 
 
 class SourceListResponse(BaseModel):
