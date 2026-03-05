@@ -20,6 +20,7 @@ from app.schemas import (
     SourceListResponse,
     OperationResponse,
 )
+from app.utils import split_by_comma
 
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ def list_sources(
 
     # Apply filters
     if tags:
-        tag_list = [t.strip() for t in tags.split(",")]
+        tag_list = split_by_comma(tags)
         for tag in tag_list:
             query = query.filter(Source.tags.contains(tag))
 

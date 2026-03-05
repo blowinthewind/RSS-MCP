@@ -9,6 +9,8 @@ from typing import Literal, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.utils import split_by_comma
+
 
 class Settings(BaseSettings):
     """
@@ -63,9 +65,7 @@ class Settings(BaseSettings):
     @property
     def api_keys_list(self) -> list[str]:
         """Get API keys as a list."""
-        if not self.api_keys:
-            return []
-        return [k.strip() for k in self.api_keys.split(",") if k.strip()]
+        return split_by_comma(self.api_keys)
 
     # RSS fetching configuration
     default_fetch_interval: int = Field(

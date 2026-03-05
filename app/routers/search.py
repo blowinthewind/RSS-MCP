@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Source, Article
 from app.schemas import ArticleResponse, ArticleListResponse, SearchResponse
+from app.utils import split_by_comma
 
 
 logger = logging.getLogger(__name__)
@@ -62,12 +63,12 @@ def search_articles(
 
     # Filter by source IDs if provided
     if sources:
-        source_id_list = [s.strip() for s in sources.split(",")]
+        source_id_list = split_by_comma(sources)
         query = query.filter(Article.source_id.in_(source_id_list))
 
     # Filter by tags if provided
     if tags:
-        tag_list = [t.strip() for t in tags.split(",")]
+        tag_list = split_by_comma(tags)
         for tag in tag_list:
             query = query.filter(Source.tags.contains(tag))
 

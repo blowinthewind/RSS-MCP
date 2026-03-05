@@ -16,6 +16,7 @@ from app.models import Source, Article
 from app.services.rss_fetcher import fetch_feed
 from app.services.content_extract import extract_content
 from app.services.scheduler import refresh_source as do_refresh
+from app.utils import split_by_comma
 
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def list_sources(
         query = db.query(Source)
 
         if tags:
-            tag_list = [t.strip() for t in tags.split(",")]
+            tag_list = split_by_comma(tags)
             for tag in tag_list:
                 query = query.filter(Source.tags.contains(tag))
 
@@ -164,8 +165,8 @@ def add_source(
                 "source_id": existing.id,
             }
 
-        # Parse tags
-        tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+        # Parse tags (handles both English and Chinese commas)
+        tag_list = split_by_comma(tags)
 
         # Create source
         source = Source(
@@ -381,13 +382,13 @@ def search_feeds(
 
         # Filter by source IDs
         if sources:
-            source_list = [s.strip() for s in sources.split(",") if s.strip()]
+            source_list = split_by_comma(sources)
             if source_list:
                 q = q.filter(Article.source_id.in_(source_list))
 
         # Filter by tags
         if tags:
-            tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+            tag_list = split_by_comma(tags)
             for tag in tag_list:
                 q = q.filter(Source.tags.contains(tag))
 

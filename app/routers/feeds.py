@@ -13,6 +13,7 @@ from app.database import get_db
 from app.models import Source, Article
 from app.schemas import ArticleResponse, ArticleListResponse
 from app.services.content_extract import extract_content
+from app.utils import split_by_comma
 
 
 logger = logging.getLogger(__name__)
@@ -75,7 +76,7 @@ def get_all_feed_items(
 
     # Filter by source IDs if provided
     if source_ids:
-        source_id_list = [s.strip() for s in source_ids.split(",")]
+        source_id_list = split_by_comma(source_ids)
         query = query.filter(Article.source_id.in_(source_id_list))
     else:
         # Only get from enabled sources

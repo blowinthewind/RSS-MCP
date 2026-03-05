@@ -38,7 +38,7 @@ export default function Sources() {
       await sourcesApi.create({
         name: newSource.name,
         url: newSource.url,
-        tags: newSource.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        tags: newSource.tags.replace(/，/g, ',').split(',').map((t) => t.trim()).filter(Boolean),
       });
       setNewSource({ name: '', url: '', tags: '' });
       setShowAddForm(false);
