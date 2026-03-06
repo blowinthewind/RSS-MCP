@@ -175,3 +175,40 @@ def verify_api_key(db: Session, api_key: str) -> Optional[ApiKey]:
         db.commit()
 
     return db_key
+
+
+def verify_api_key_from_header(auth_header: str) -> tuple[bool, str]:
+    """
+    Verify API key from Authorization header.
+
+    This is a shared function used by both SSE and Streamable HTTP modes
+    to reduce code duplication.
+
+    Args:
+        auth_header: The Authorization header value (e.g., "Bearer <api_key>")
+
+    Returns:
+        Tuple of (is_valid: bool, error_message: str)
+        If valid, error_message is empty
+    """
+    if not auth_header:
+        return False, "Missing Authorization header"
+
+    # Extract Bearer token
+    parts = auth_header.split(" ")
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return False, "Invalid Authorization header format. Use: Bearer <api_key>"
+
+    api_key = parts[1]
+
+    # Verify API key against database
+    from app.database import get_db
+    db = next(get_db())
+    try:
+        db_key = verify_api_key(db, api_key)
+        if not db_key:
+            return False, "Invalid API key"
+    finally:
+        db.close()
+
+    return True, ""

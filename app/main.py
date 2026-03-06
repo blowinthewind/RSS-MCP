@@ -20,7 +20,7 @@ from app.models import Source, Article
 from app.mcp.tools import mcp
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.routers import sources_router, feeds_router, search_router, articles_router, api_keys_router, settings_router
-from app.routers.api_keys import verify_api_key
+from app.routers.api_keys import verify_api_key, verify_api_key_from_header
 
 
 # Configure logging
@@ -251,27 +251,10 @@ def run_sse():
         # Check API key for /mcp and other paths
         auth_header = request.headers.get("authorization", "")
 
-        if not auth_header:
-            return JSONResponse(status_code=401, content={"error": "Missing Authorization header"})
-
-        # Extract Bearer token
-        parts = auth_header.split(" ")
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            return JSONResponse(
-                status_code=401,
-                content={"error": "Invalid Authorization header format. Use: Bearer <api_key>"},
-            )
-
-        api_key = parts[1]
-        
-        # Verify API key against database
-        db = next(get_db())
-        try:
-            db_key = verify_api_key(db, api_key)
-            if not db_key:
-                return JSONResponse(status_code=401, content={"error": "Invalid API key"})
-        finally:
-            db.close()
+        # Use shared verification function
+        is_valid, error_message = verify_api_key_from_header(auth_header)
+        if not is_valid:
+            return JSONResponse(status_code=401, content={"error": error_message})
 
         return await call_next(request)
 
@@ -308,27 +291,11 @@ class AuthMiddleware:
         headers = dict(scope.get("headers", []))
         auth_header = headers.get(b"authorization", b"").decode("utf-8")
 
-        if not auth_header:
-            await self._send_error(send, 401, "Missing Authorization header")
+        # Use shared verification function
+        is_valid, error_message = verify_api_key_from_header(auth_header)
+        if not is_valid:
+            await self._send_error(send, 401, error_message)
             return
-
-        # Extract Bearer token
-        parts = auth_header.split(" ")
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            await self._send_error(send, 401, "Invalid Authorization header format. Use: Bearer <api_key>")
-            return
-
-        api_key = parts[1]
-
-        # Verify API key against database
-        db = next(get_db())
-        try:
-            db_key = verify_api_key(db, api_key)
-            if not db_key:
-                await self._send_error(send, 401, "Invalid API key")
-                return
-        finally:
-            db.close()
 
         await self.app(scope, receive, send)
 
