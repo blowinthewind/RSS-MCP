@@ -327,7 +327,7 @@ def escape_like_pattern(pattern: str) -> str:
     SQL LIKE special characters:
     - % matches any sequence of characters
     - _ matches any single character
-    - \ is the escape character
+    - \\ is the escape character
 
     Args:
         pattern: Raw search pattern
@@ -389,16 +389,15 @@ def search_feeds(
         # Filter by tags
         if tags:
             tag_list = split_by_comma(tags)
-            for tag in tag_list:
-                q = q.filter(Source.tags.contains(tag))
+            q = q.filter(or_(*[Source.tags.contains(tag) for tag in tag_list]))
 
         # Apply search filter with escaped special characters
+        # Search only title and summary (content excluded for performance)
         escaped_query = escape_like_pattern(query.strip())
         search_term = f"%{escaped_query}%"
         q = q.filter(
             Article.title.ilike(search_term)
             | Article.summary.ilike(search_term)
-            | Article.content.ilike(search_term)
         )
 
         # Get total count
