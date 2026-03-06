@@ -59,7 +59,7 @@ def generate_api_key() -> str:
     """Generate a secure random API key."""
     # Generate 32 bytes of randomness, base64 encoded
     random_part = secrets.token_urlsafe(32)
-    return f"dailynews_{random_part}"
+    return f"rssm_{random_part}"
 
 
 def hash_api_key(key: str) -> str:
