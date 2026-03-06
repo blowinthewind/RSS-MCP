@@ -19,7 +19,6 @@ class TestSettings:
             assert settings.host == "0.0.0.0"
             assert settings.port == 8000
             assert settings.auth_enabled is False
-            assert settings.api_keys == ""
             assert settings.default_fetch_interval == 300
             assert settings.request_timeout == 30
             assert settings.max_items_per_source == 50
@@ -35,7 +34,6 @@ class TestSettings:
             "HOST": "127.0.0.1",
             "PORT": "9000",
             "AUTH_ENABLED": "true",
-            "API_KEYS": "key1,key2,key3",
             "DEFAULT_FETCH_INTERVAL": "600",
             "REQUEST_TIMEOUT": "60",
             "MAX_ITEMS_PER_SOURCE": "100",
@@ -50,7 +48,6 @@ class TestSettings:
             assert settings.host == "127.0.0.1"
             assert settings.port == 9000
             assert settings.auth_enabled is True
-            assert settings.api_keys == "key1,key2,key3"
             assert settings.default_fetch_interval == 600
             assert settings.request_timeout == 60
             assert settings.max_items_per_source == 100
@@ -70,33 +67,6 @@ class TestSettings:
         with patch.dict(os.environ, {"DEPLOYMENT": "invalid"}, clear=True):
             with pytest.raises(Exception):
                 Settings()
-
-    def test_api_keys_list_property(self):
-        """Test api_keys_list property."""
-        # Empty keys
-        with patch.dict(os.environ, {"API_KEYS": ""}, clear=True):
-            settings = Settings()
-            assert settings.api_keys_list == []
-
-        # Single key
-        with patch.dict(os.environ, {"API_KEYS": "key1"}, clear=True):
-            settings = Settings()
-            assert settings.api_keys_list == ["key1"]
-
-        # Multiple keys
-        with patch.dict(os.environ, {"API_KEYS": "key1,key2,key3"}, clear=True):
-            settings = Settings()
-            assert settings.api_keys_list == ["key1", "key2", "key3"]
-
-        # Keys with whitespace
-        with patch.dict(os.environ, {"API_KEYS": " key1 , key2 , key3 "}, clear=True):
-            settings = Settings()
-            assert settings.api_keys_list == ["key1", "key2", "key3"]
-
-        # Empty keys in list
-        with patch.dict(os.environ, {"API_KEYS": "key1,,key2,"}, clear=True):
-            settings = Settings()
-            assert settings.api_keys_list == ["key1", "key2"]
 
 
 class TestGetDatabaseUrl:

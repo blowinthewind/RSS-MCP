@@ -20,6 +20,7 @@ from app.models import Source, Article
 from app.mcp.tools import mcp
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.routers import sources_router, feeds_router, search_router, articles_router, api_keys_router, settings_router
+from app.routers.api_keys import verify_api_key
 
 
 # Configure logging
@@ -262,8 +263,15 @@ def run_sse():
             )
 
         api_key = parts[1]
-        if api_key not in settings.api_keys_list:
-            return JSONResponse(status_code=401, content={"error": "Invalid API key"})
+        
+        # Verify API key against database
+        db = next(get_db())
+        try:
+            db_key = verify_api_key(db, api_key)
+            if not db_key:
+                return JSONResponse(status_code=401, content={"error": "Invalid API key"})
+        finally:
+            db.close()
 
         return await call_next(request)
 

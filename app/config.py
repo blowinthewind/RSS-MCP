@@ -13,9 +13,6 @@ import yaml
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.utils import split_by_comma
-
-
 # Default config file path
 CONFIG_FILE = Path(__file__).parent.parent / "config.yaml"
 
@@ -100,15 +97,6 @@ class Settings(BaseSettings):
         default_factory=lambda: get_yaml_value("auth.enabled", False),
         description="Enable API key authentication for remote mode",
     )
-    api_keys: str = Field(
-        default_factory=lambda: get_yaml_value("auth.api_keys", ""),
-        description="Comma-separated list of allowed API keys for authentication",
-    )
-    
-    @property
-    def api_keys_list(self) -> list[str]:
-        """Get API keys as a list."""
-        return split_by_comma(self.api_keys)
 
     # RSS fetching configuration
     default_fetch_interval: int = Field(
