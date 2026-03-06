@@ -43,6 +43,12 @@ export default function SettingsPage() {
   };
 
   const handleIntervalChange = (value: string) => {
+    // Allow empty string for user to delete all characters
+    if (value === '') {
+      setIntervalMinutes(0);
+      setHasChanges(true);
+      return;
+    }
     const num = parseInt(value, 10);
     if (!isNaN(num)) {
       setIntervalMinutes(num);
