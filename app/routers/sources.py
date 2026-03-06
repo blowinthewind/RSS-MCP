@@ -5,7 +5,6 @@ This module provides API endpoints for RSS source management.
 
 import logging
 from typing import Optional
-from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_
@@ -20,43 +19,10 @@ from app.schemas import (
     SourceListResponse,
     OperationResponse,
 )
-from app.utils import split_by_comma
+from app.utils import split_by_comma, validate_url
 
 
 logger = logging.getLogger(__name__)
-
-
-def validate_url(url: str) -> tuple[bool, str]:
-    """
-    Validate URL format.
-
-    Args:
-        url: URL string to validate
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    if not url or not url.strip():
-        return False, "URL cannot be empty"
-
-    url = url.strip()
-
-    try:
-        result = urlparse(url)
-        if not all([result.scheme, result.netloc]):
-            return False, "Invalid URL format: must include scheme (http/https) and domain"
-
-        if result.scheme not in ["http", "https"]:
-            return False, f"Invalid URL scheme: {result.scheme}. Only http and https are allowed"
-
-        # Basic domain validation
-        domain = result.netloc.lower()
-        if not domain or "." not in domain:
-            return False, "Invalid domain in URL"
-
-        return True, ""
-    except Exception as e:
-        return False, f"URL validation error: {str(e)}"
 from app.services.rss_fetcher import fetch_feed
 from app.services.content_extract import extract_content
 

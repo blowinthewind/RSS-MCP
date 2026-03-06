@@ -5,11 +5,8 @@ This module provides MCP tools for RSS feed operations, designed for LLM usage.
 
 import logging
 import re
-import socket
 from typing import Optional
-from urllib.parse import urlparse
 
-import safehttpx
 from fastmcp import FastMCP
 
 from app.config import settings
@@ -18,7 +15,7 @@ from app.models import Source, Article
 from app.services.rss_fetcher import fetch_feed
 from app.services.content_extract import extract_content
 from app.services.scheduler import refresh_source as do_refresh
-from app.utils import split_by_comma
+from app.utils import split_by_comma, validate_url
 
 
 logger = logging.getLogger(__name__)
@@ -81,74 +78,6 @@ def list_sources(
             ],
             "total": len(sources),
         }
-
-
-def validate_url(url: str) -> tuple[bool, str]:
-    """
-    Validate URL format and prevent SSRF attacks.
-
-    Args:
-        url: URL string to validate
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    if not url or not url.strip():
-        return False, "URL cannot be empty"
-
-    url = url.strip()
-
-    try:
-        result = urlparse(url)
-        if not all([result.scheme, result.netloc]):
-            return False, "Invalid URL format: must include scheme (http/https) and domain"
-
-        if result.scheme not in ["http", "https"]:
-            return False, f"Invalid URL scheme: {result.scheme}. Only http and https are allowed"
-
-        # Basic domain validation
-        domain = result.netloc.lower()
-        if not domain or "." not in domain:
-            return False, "Invalid domain in URL"
-
-        # SSRF protection: validate hostname does not resolve to internal IP
-        hostname = result.hostname
-        if not hostname:
-            return False, "Invalid hostname in URL"
-
-        # Block localhost
-        if hostname.lower() in ['localhost', 'localhost.localdomain', '127.0.0.1', '::1']:
-            return False, "URL cannot use localhost"
-
-        # Set DNS resolution timeout to prevent long waits
-        old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(3)  # 3 second timeout
-
-        try:
-            # Use getaddrinfo to support both IPv4 and IPv6
-            addr_info = socket.getaddrinfo(hostname, None)
-            if not addr_info:
-                return False, "Could not resolve hostname"
-
-            # Get the first resolved IP address
-            ip = addr_info[0][4][0]
-
-            # Verify it's a public IP (not internal)
-            if not safehttpx.is_public_ip(ip):
-                return False, f"URL resolves to internal IP address: {ip}"
-        except socket.timeout:
-            return False, "DNS resolution timeout"
-        except socket.gaierror:
-            # DNS resolution failed, might be a new domain
-            # Allow it to proceed (will fail later if truly invalid)
-            pass
-        finally:
-            # Restore original timeout
-            socket.setdefaulttimeout(old_timeout)
-
-        return True, ""
-    except Exception as e:
-        return False, f"URL validation error: {str(e)}"
 
 
 @mcp.tool()
