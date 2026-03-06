@@ -1,0 +1,49 @@
+# RSS MCP Service Configuration
+# This is the default configuration file.
+# You can modify these settings or override with environment variables.
+
+# Database configuration
+# Supports: sqlite, postgresql, mysql
+# Examples:
+#   sqlite: "sqlite:///./rss.db"
+#   postgresql: "postgresql://user:password@localhost/rss"
+database:
+  url: "sqlite:///./rss.db"
+
+# Server configuration (for SSE mode)
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+# Deployment mode
+# Options: auto, stdio, sse
+#   auto: Automatically detect (default)
+#   stdio: Local stdio mode for MCP
+#   sse: Remote HTTP SSE mode
+deployment: "auto"
+
+# Authentication configuration (for SSE mode)
+auth:
+  enabled: false
+  # API keys for authentication (comma-separated)
+  # Example: "key1,key2,key3"
+  api_keys: ""
+
+# RSS fetching configuration
+rss:
+  # Default fetch interval in seconds (5 minutes)
+  fetch_interval: 300
+  # Request timeout in seconds for fetching RSS feeds
+  request_timeout: 30
+  # Maximum number of items to fetch per source
+  max_items_per_source: 50
+
+# Content extraction configuration
+content:
+  # Enable content extraction with trafilatura
+  extraction_enabled: true
+
+# MCP server configuration
+mcp:
+  name: "RSS Reader"
+  version: "0.1.0"
