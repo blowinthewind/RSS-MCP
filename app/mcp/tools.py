@@ -5,9 +5,11 @@ This module provides MCP tools for RSS feed operations, designed for LLM usage.
 
 import logging
 import re
+import socket
 from typing import Optional
 from urllib.parse import urlparse
 
+import safehttpx
 from fastmcp import FastMCP
 
 from app.config import settings
@@ -83,7 +85,7 @@ def list_sources(
 
 def validate_url(url: str) -> tuple[bool, str]:
     """
-    Validate URL format.
+    Validate URL format and prevent SSRF attacks.
 
     Args:
         url: URL string to validate
@@ -108,6 +110,41 @@ def validate_url(url: str) -> tuple[bool, str]:
         domain = result.netloc.lower()
         if not domain or "." not in domain:
             return False, "Invalid domain in URL"
+
+        # SSRF protection: validate hostname does not resolve to internal IP
+        hostname = result.hostname
+        if not hostname:
+            return False, "Invalid hostname in URL"
+
+        # Block localhost
+        if hostname.lower() in ['localhost', 'localhost.localdomain', '127.0.0.1', '::1']:
+            return False, "URL cannot use localhost"
+
+        # Set DNS resolution timeout to prevent long waits
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(3)  # 3 second timeout
+
+        try:
+            # Use getaddrinfo to support both IPv4 and IPv6
+            addr_info = socket.getaddrinfo(hostname, None)
+            if not addr_info:
+                return False, "Could not resolve hostname"
+
+            # Get the first resolved IP address
+            ip = addr_info[0][4][0]
+
+            # Verify it's a public IP (not internal)
+            if not safehttpx.is_public_ip(ip):
+                return False, f"URL resolves to internal IP address: {ip}"
+        except socket.timeout:
+            return False, "DNS resolution timeout"
+        except socket.gaierror:
+            # DNS resolution failed, might be a new domain
+            # Allow it to proceed (will fail later if truly invalid)
+            pass
+        finally:
+            # Restore original timeout
+            socket.setdefaulttimeout(old_timeout)
 
         return True, ""
     except Exception as e:
