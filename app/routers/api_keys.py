@@ -16,7 +16,7 @@ from app.database import get_db
 from app.models import ApiKey
 
 
-router = APIRouter(prefix="/api-keys", tags=["api-keys"])
+router = APIRouter(prefix="/api/api-keys", tags=["api-keys"])
 
 
 class ApiKeyCreate(BaseModel):
