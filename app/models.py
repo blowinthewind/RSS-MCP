@@ -57,10 +57,11 @@ class Source(Base):
         default=lambda: [],
     )
 
-    # Whether this source is active
+    # Whether this source is active - indexed for filtering
     enabled: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
+        index=True,
     )
 
     # Fetch interval in seconds
@@ -115,11 +116,12 @@ class Article(Base):
         default=generate_id,
     )
 
-    # Foreign key to source
+    # Foreign key to source - indexed for filtering and joins
     source_id: Mapped[str] = mapped_column(
         String(12),
         ForeignKey("sources.id"),
         nullable=False,
+        index=True,
     )
 
     # Article title
@@ -153,10 +155,11 @@ class Article(Base):
         nullable=True,
     )
 
-    # Publication timestamp
+    # Publication timestamp - indexed for sorting
     published: Mapped[Optional[datetime]] = mapped_column(
         DateTime,
         nullable=True,
+        index=True,
     )
 
     # When this article was fetched
