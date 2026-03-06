@@ -26,9 +26,9 @@ class TestContentExtractor:
         assert extractor.timeout == 60
 
     @patch('app.services.content_extract.settings')
-    @patch('app.services.content_extract.httpx.Client')
+    @patch('app.services.content_extract.safehttpx.get')
     @patch('app.services.content_extract.trafilatura.extract')
-    def test_extract_success(self, mock_trafilatura_extract, mock_client_class, mock_settings, extractor):
+    def test_extract_success(self, mock_trafilatura_extract, mock_safehttpx, mock_settings, extractor):
         """Test successful content extraction."""
         mock_settings.enable_content_extraction = True
 
@@ -37,11 +37,10 @@ class TestContentExtractor:
         mock_response.text = "<html><body>Test content</body></html>"
         mock_response.raise_for_status = Mock()
 
-        mock_client = Mock()
-        mock_client.__enter__ = Mock(return_value=mock_client)
-        mock_client.__exit__ = Mock(return_value=False)
-        mock_client.get.return_value = mock_response
-        mock_client_class.return_value = mock_client
+        # Create async mock for safehttpx.get
+        async def async_mock(*args, **kwargs):
+            return mock_response
+        mock_safehttpx.side_effect = async_mock
 
         # Mock trafilatura extraction
         mock_trafilatura_extract.return_value = "Extracted test content"
@@ -49,7 +48,7 @@ class TestContentExtractor:
         result = extractor.extract("https://example.com/article")
 
         assert result == "Extracted test content"
-        mock_client.get.assert_called_once_with("https://example.com/article")
+        mock_safehttpx.assert_called_once()
         mock_trafilatura_extract.assert_called_once()
 
     @patch('app.services.content_extract.settings')
@@ -62,43 +61,39 @@ class TestContentExtractor:
         assert result is None
 
     @patch('app.services.content_extract.settings')
-    @patch('app.services.content_extract.httpx.Client')
-    def test_extract_timeout(self, mock_client_class, mock_settings, extractor):
+    @patch('app.services.content_extract.safehttpx.get')
+    def test_extract_timeout(self, mock_safehttpx, mock_settings, extractor):
         """Test handling of timeout exception."""
         mock_settings.enable_content_extraction = True
 
-        # Mock HTTP client to raise timeout
-        mock_client = Mock()
-        mock_client.__enter__ = Mock(return_value=mock_client)
-        mock_client.__exit__ = Mock(return_value=False)
-        mock_client.get.side_effect = httpx.TimeoutException("Request timed out")
-        mock_client_class.return_value = mock_client
+        # Create async mock that raises timeout
+        async def async_timeout(*args, **kwargs):
+            raise httpx.TimeoutException("Request timed out")
+        mock_safehttpx.side_effect = async_timeout
 
         result = extractor.extract("https://example.com/article")
 
         assert result is None
 
     @patch('app.services.content_extract.settings')
-    @patch('app.services.content_extract.httpx.Client')
-    def test_extract_http_error(self, mock_client_class, mock_settings, extractor):
+    @patch('app.services.content_extract.safehttpx.get')
+    def test_extract_http_error(self, mock_safehttpx, mock_settings, extractor):
         """Test handling of HTTP error."""
         mock_settings.enable_content_extraction = True
 
-        # Mock HTTP client to raise HTTP error
-        mock_client = Mock()
-        mock_client.__enter__ = Mock(return_value=mock_client)
-        mock_client.__exit__ = Mock(return_value=False)
-        mock_client.get.side_effect = httpx.HTTPError("404 Not Found")
-        mock_client_class.return_value = mock_client
+        # Create async mock that raises HTTP error
+        async def async_http_error(*args, **kwargs):
+            raise httpx.HTTPError("404 Not Found")
+        mock_safehttpx.side_effect = async_http_error
 
         result = extractor.extract("https://example.com/article")
 
         assert result is None
 
     @patch('app.services.content_extract.settings')
-    @patch('app.services.content_extract.httpx.Client')
+    @patch('app.services.content_extract.safehttpx.get')
     @patch('app.services.content_extract.trafilatura.extract')
-    def test_extract_no_content(self, mock_trafilatura_extract, mock_client_class, mock_settings, extractor):
+    def test_extract_no_content(self, mock_trafilatura_extract, mock_safehttpx, mock_settings, extractor):
         """Test extraction when no content is found."""
         mock_settings.enable_content_extraction = True
 
@@ -107,11 +102,10 @@ class TestContentExtractor:
         mock_response.text = "<html><body></body></html>"
         mock_response.raise_for_status = Mock()
 
-        mock_client = Mock()
-        mock_client.__enter__ = Mock(return_value=mock_client)
-        mock_client.__exit__ = Mock(return_value=False)
-        mock_client.get.return_value = mock_response
-        mock_client_class.return_value = mock_client
+        # Create async mock for safehttpx.get
+        async def async_mock(*args, **kwargs):
+            return mock_response
+        mock_safehttpx.side_effect = async_mock
 
         # Mock trafilatura returning None (no content extracted)
         mock_trafilatura_extract.return_value = None
@@ -121,9 +115,9 @@ class TestContentExtractor:
         assert result is None
 
     @patch('app.services.content_extract.settings')
-    @patch('app.services.content_extract.httpx.Client')
+    @patch('app.services.content_extract.safehttpx.get')
     @patch('app.services.content_extract.trafilatura.extract')
-    def test_extract_trafilatura_options(self, mock_trafilatura_extract, mock_client_class, mock_settings, extractor):
+    def test_extract_trafilatura_options(self, mock_trafilatura_extract, mock_safehttpx, mock_settings, extractor):
         """Test that trafilatura is called with correct options."""
         mock_settings.enable_content_extraction = True
 
@@ -132,11 +126,10 @@ class TestContentExtractor:
         mock_response.text = "<html><body>Content</body></html>"
         mock_response.raise_for_status = Mock()
 
-        mock_client = Mock()
-        mock_client.__enter__ = Mock(return_value=mock_client)
-        mock_client.__exit__ = Mock(return_value=False)
-        mock_client.get.return_value = mock_response
-        mock_client_class.return_value = mock_client
+        # Create async mock for safehttpx.get
+        async def async_mock(*args, **kwargs):
+            return mock_response
+        mock_safehttpx.side_effect = async_mock
 
         mock_trafilatura_extract.return_value = "Content"
 
@@ -151,19 +144,32 @@ class TestContentExtractor:
         )
 
     @patch('app.services.content_extract.settings')
-    @patch('app.services.content_extract.httpx.Client')
-    def test_extract_generic_exception(self, mock_client_class, mock_settings, extractor):
+    @patch('app.services.content_extract.safehttpx.get')
+    def test_extract_generic_exception(self, mock_safehttpx, mock_settings, extractor):
         """Test handling of generic exception."""
         mock_settings.enable_content_extraction = True
 
-        # Mock HTTP client to raise generic exception
-        mock_client = Mock()
-        mock_client.__enter__ = Mock(return_value=mock_client)
-        mock_client.__exit__ = Mock(return_value=False)
-        mock_client.get.side_effect = Exception("Unexpected error")
-        mock_client_class.return_value = mock_client
+        # Create async mock that raises generic exception
+        async def async_error(*args, **kwargs):
+            raise Exception("Unexpected error")
+        mock_safehttpx.side_effect = async_error
 
         result = extractor.extract("https://example.com/article")
+
+        assert result is None
+
+    @patch('app.services.content_extract.settings')
+    @patch('app.services.content_extract.safehttpx.get')
+    def test_extract_ssrf_protection(self, mock_safehttpx, mock_settings, extractor):
+        """Test SSRF protection blocks internal IPs."""
+        mock_settings.enable_content_extraction = True
+
+        # Create async mock that raises ValueError (SSRF protection)
+        async def async_ssrf_error(*args, **kwargs):
+            raise ValueError("Hostname 127.0.0.1 failed validation")
+        mock_safehttpx.side_effect = async_ssrf_error
+
+        result = extractor.extract("http://127.0.0.1/admin")
 
         assert result is None
 

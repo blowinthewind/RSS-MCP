@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "alembic>=1.13.0",
     "tenacity>=8.0.0",
+    "safehttpx>=0.1.7",
 ]
 
 [project.optional-dependencies]

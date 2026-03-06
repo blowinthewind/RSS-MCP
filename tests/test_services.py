@@ -185,18 +185,23 @@ class TestRSSFetcher:
 class TestContentExtractor:
     """Tests for content extractor service."""
 
-    @patch("app.services.content_extract.httpx.Client")
+    @patch("app.services.content_extract.safehttpx.get")
     @patch("app.services.content_extract.trafilatura.extract")
-    def test_extract_content_success(self, mock_extract, mock_client):
+    def test_extract_content_success(self, mock_extract, mock_safehttpx):
         """Test successful content extraction."""
         from app.services.content_extract import ContentExtractor
+        import asyncio
 
         # Mock HTTP response
         mock_response = MagicMock()
         mock_response.text = "<html><body>Test content</body></html>"
         mock_response.raise_for_status = MagicMock()
 
-        mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+        # Create async mock for safehttpx.get
+        async def async_mock(*args, **kwargs):
+            return mock_response
+        mock_safehttpx.side_effect = async_mock
+
         mock_extract.return_value = "Extracted text content"
 
         extractor = ContentExtractor()
@@ -204,15 +209,16 @@ class TestContentExtractor:
 
         assert result == "Extracted text content"
 
-    @patch("app.services.content_extract.httpx.Client")
-    def test_extract_content_timeout(self, mock_client):
+    @patch("app.services.content_extract.safehttpx.get")
+    def test_extract_content_timeout(self, mock_safehttpx):
         """Test content extraction timeout handling."""
         from app.services.content_extract import ContentExtractor
         import httpx
 
-        mock_client.return_value.__enter__.return_value.get.side_effect = httpx.TimeoutException(
-            "Timeout"
-        )
+        # Create async mock that raises timeout
+        async def async_timeout(*args, **kwargs):
+            raise httpx.TimeoutException("Timeout")
+        mock_safehttpx.side_effect = async_timeout
 
         extractor = ContentExtractor()
         result = extractor.extract("https://example.com/article")

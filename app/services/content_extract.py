@@ -1,13 +1,15 @@
 """Content extraction service.
 
 This module provides content extraction functionality using trafilatura.
-Extracts clean text content from HTML pages.
+Extracts clean text content from HTML pages with SSRF protection.
 """
 
+import asyncio
 import logging
 from typing import Optional
 
 import httpx
+import safehttpx
 import trafilatura
 
 from app.config import settings
@@ -21,6 +23,7 @@ class ContentExtractor:
     Content Extractor.
 
     Extracts clean text content from HTML pages using trafilatura.
+    Uses safehttpx to prevent SSRF attacks.
     """
 
     def __init__(self, timeout: Optional[int] = None):
@@ -48,11 +51,14 @@ class ContentExtractor:
         try:
             logger.info(f"Extracting content from {url}")
 
-            # Fetch HTML content
-            with httpx.Client(timeout=self.timeout) as client:
-                response = client.get(url)
+            # Fetch HTML content with SSRF protection
+            try:
+                response = asyncio.run(safehttpx.get(url, timeout=self.timeout))
                 response.raise_for_status()
                 html_content = response.text
+            except ValueError as e:
+                logger.warning(f"SSRF protection triggered for {url}: {e}")
+                return None
 
             # Extract content using trafilatura (markdown format for better readability)
             extracted = trafilatura.extract(
