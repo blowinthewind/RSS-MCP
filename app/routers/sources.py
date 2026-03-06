@@ -8,7 +8,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -83,8 +83,8 @@ def list_sources(
     # Apply filters
     if tags:
         tag_list = split_by_comma(tags)
-        for tag in tag_list:
-            query = query.filter(Source.tags.contains(tag))
+        # Use OR condition to match any of the tags (avoids N+1 query)
+        query = query.filter(or_(*[Source.tags.contains(tag) for tag in tag_list]))
 
     if enabled is not None:
         query = query.filter(Source.enabled == enabled)
