@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [intervalMinutes, setIntervalMinutes] = useState(30);
+  const [intervalInput, setIntervalInput] = useState('30');
   const [isSaving, setIsSaving] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -30,7 +30,7 @@ export default function SettingsPage() {
       ]);
       setStats(statsData);
       setSettings(settingsData);
-      setIntervalMinutes(settingsData.fetch_interval_minutes);
+      setIntervalInput(String(settingsData.fetch_interval_minutes));
     } catch (error) {
       toast({
         title: 'Error',
@@ -43,21 +43,19 @@ export default function SettingsPage() {
   };
 
   const handleIntervalChange = (value: string) => {
-    // Allow empty string for user to delete all characters
-    if (value === '') {
-      setIntervalMinutes(0);
-      setHasChanges(true);
-      return;
-    }
+    // Allow any input, validation happens on save
+    setIntervalInput(value);
     const num = parseInt(value, 10);
     if (!isNaN(num)) {
-      setIntervalMinutes(num);
       setHasChanges(num !== settings?.fetch_interval_minutes);
+    } else {
+      setHasChanges(value !== String(settings?.fetch_interval_minutes));
     }
   };
 
   const handleSave = async () => {
-    if (intervalMinutes < 30) {
+    const num = parseInt(intervalInput, 10);
+    if (isNaN(num) || num < 30) {
       toast({
         title: 'Error',
         description: 'Fetch interval must be at least 30 minutes',
@@ -68,8 +66,9 @@ export default function SettingsPage() {
 
     setIsSaving(true);
     try {
-      const updated = await settingsApi.update(intervalMinutes);
+      const updated = await settingsApi.update(num);
       setSettings(updated);
+      setIntervalInput(String(updated.fetch_interval_minutes));
       setHasChanges(false);
       toast({
         title: 'Success',
@@ -108,6 +107,10 @@ export default function SettingsPage() {
       setIsRestarting(false);
     }
   };
+
+  // Get numeric value for validation
+  const intervalValue = parseInt(intervalInput, 10);
+  const isValid = !isNaN(intervalValue) && intervalValue >= 30;
 
   if (loading) return <div>Loading...</div>;
 
@@ -213,11 +216,11 @@ export default function SettingsPage() {
                 <Input
                   type="number"
                   min={30}
-                  value={intervalMinutes}
+                  value={intervalInput}
                   onChange={(e) => handleIntervalChange(e.target.value)}
-                  className={intervalMinutes < 30 ? 'border-red-500' : ''}
+                  className={!isValid && intervalInput !== '' ? 'border-red-500' : ''}
                 />
-                {intervalMinutes < 30 && (
+                {!isValid && intervalInput !== '' && (
                   <p className="text-sm text-red-500 mt-1">
                     Minimum interval is 30 minutes
                   </p>
@@ -242,7 +245,7 @@ export default function SettingsPage() {
             <div className="flex gap-3 pt-2">
               <Button
                 onClick={handleSave}
-                disabled={!hasChanges || intervalMinutes < 30 || isSaving}
+                disabled={!hasChanges || !isValid || isSaving}
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? 'Saving...' : 'Save Settings'}
