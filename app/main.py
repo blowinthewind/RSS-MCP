@@ -279,6 +279,73 @@ def run_sse():
     uvicorn.run(app, host=settings.host, port=settings.port)
 
 
+class AuthMiddleware:
+    """ASGI middleware for API key authentication."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        # Only process HTTP requests
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Skip auth if not enabled
+        if not settings.auth_enabled:
+            await self.app(scope, receive, send)
+            return
+
+        # Get request path
+        path = scope.get("path", "")
+
+        # Skip auth for health and root endpoints
+        if path in ["/health", "/"]:
+            await self.app(scope, receive, send)
+            return
+
+        # Get headers
+        headers = dict(scope.get("headers", []))
+        auth_header = headers.get(b"authorization", b"").decode("utf-8")
+
+        if not auth_header:
+            await self._send_error(send, 401, "Missing Authorization header")
+            return
+
+        # Extract Bearer token
+        parts = auth_header.split(" ")
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            await self._send_error(send, 401, "Invalid Authorization header format. Use: Bearer <api_key>")
+            return
+
+        api_key = parts[1]
+
+        # Verify API key against database
+        db = next(get_db())
+        try:
+            db_key = verify_api_key(db, api_key)
+            if not db_key:
+                await self._send_error(send, 401, "Invalid API key")
+                return
+        finally:
+            db.close()
+
+        await self.app(scope, receive, send)
+
+    async def _send_error(self, send, status_code: int, message: str):
+        """Send error response."""
+        await send({
+            "type": "http.response.start",
+            "status": status_code,
+            "headers": [(b"content-type", b"application/json")],
+        })
+        import json
+        await send({
+            "type": "http.response.body",
+            "body": json.dumps({"error": message}).encode(),
+        })
+
+
 def run_streamable_http():
     """
     Run MCP server in Streamable HTTP mode.
@@ -305,14 +372,15 @@ def run_streamable_http():
 
     # Run MCP server with streamable-http transport
     logger.info(f"Starting MCP server in streamable-http mode on {settings.host}:{settings.port}...")
-    
+
     async def start_server():
         await mcp.run_http_async(
             transport="streamable-http",
             host=settings.host,
             port=settings.port,
+            middleware=[AuthMiddleware],
         )
-    
+
     asyncio.run(start_server())
 
 
