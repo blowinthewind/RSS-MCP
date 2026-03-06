@@ -44,7 +44,7 @@ export default function SettingsPage() {
 
   const handleIntervalChange = (value: string) => {
     const num = parseInt(value, 10);
-    if (!isNaN(num) && num >= 30) {
+    if (!isNaN(num)) {
       setIntervalMinutes(num);
       setHasChanges(num !== settings?.fetch_interval_minutes);
     }
