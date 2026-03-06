@@ -7,6 +7,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -53,15 +54,15 @@ def search_articles(
     Search articles by query string.
 
     Supports filtering by source IDs and tags.
-    Search is performed on title, summary, and content fields.
+    Search is performed on title and summary fields (content excluded for performance).
     """
     # Start with base query
     query = db.query(Article).join(Source)
 
-    # Filter by enabled sources
+    # Filter by enabled sources first (reduces search scope)
     query = query.filter(Source.enabled == True)
 
-    # Filter by source IDs if provided
+    # Filter by source IDs if provided (further reduces scope)
     if sources:
         source_id_list = split_by_comma(sources)
         query = query.filter(Article.source_id.in_(source_id_list))
@@ -69,17 +70,15 @@ def search_articles(
     # Filter by tags if provided
     if tags:
         tag_list = split_by_comma(tags)
-        for tag in tag_list:
-            query = query.filter(Source.tags.contains(tag))
+        query = query.filter(or_(*[Source.tags.contains(tag) for tag in tag_list]))
 
-    # Apply search filter (case-insensitive)
-    # Escape special characters to prevent SQL LIKE injection
+    # Apply search filter (case-insensitive) on title and summary only
+    # Content field excluded to avoid full table scan on large text columns
     escaped_q = escape_like_pattern(q)
     search_term = f"%{escaped_q}%"
     query = query.filter(
         Article.title.ilike(search_term)
         | Article.summary.ilike(search_term)
-        | Article.content.ilike(search_term)
     )
 
     # Get total count
