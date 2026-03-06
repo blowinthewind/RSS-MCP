@@ -25,7 +25,7 @@ def escape_like_pattern(pattern: str) -> str:
     SQL LIKE special characters:
     - % matches any sequence of characters
     - _ matches any single character
-    - \ is the escape character
+    - \\ is the escape character
 
     Args:
         pattern: Raw search pattern
@@ -127,8 +127,9 @@ def search_articles_post(
         for tag in tags:
             query = query.filter(Source.tags.contains(tag))
 
-    # Apply search filter (case-insensitive)
-    search_term = f"%{q}%"
+    # Apply search filter (case-insensitive) with SQL injection protection
+    escaped_q = escape_like_pattern(q)
+    search_term = f"%{escaped_q}%"
     query = query.filter(
         Article.title.ilike(search_term)
         | Article.summary.ilike(search_term)
