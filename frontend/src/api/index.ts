@@ -232,3 +232,26 @@ export const apiKeysApi = {
   revoke: (id: string) =>
     fetchApi<ApiKey>(`/api-keys/${id}/revoke`, { method: 'POST' }),
 };
+
+export interface Settings {
+  fetch_interval_minutes: number;
+  updated_at: string | null;
+}
+
+export interface RestartResponse {
+  success: boolean;
+  message: string;
+}
+
+export const settingsApi = {
+  get: () => fetchApi<Settings>('/settings'),
+
+  update: (fetch_interval_minutes: number) =>
+    fetchApi<Settings>('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ fetch_interval_minutes }),
+    }),
+
+  restart: () =>
+    fetchApi<RestartResponse>('/settings/restart', { method: 'POST' }),
+};

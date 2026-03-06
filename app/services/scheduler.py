@@ -212,6 +212,35 @@ def stop_scheduler(wait: bool = False, timeout: Optional[int] = 10):
     scheduler.stop(wait=wait, timeout=timeout)
 
 
+def restart_scheduler(interval_seconds: Optional[int] = None):
+    """
+    Restart the scheduler with a new interval.
+
+    Args:
+        interval_seconds: New fetch interval in seconds. If None, uses default.
+    """
+    logger.info(f"Restarting scheduler with interval {interval_seconds} seconds")
+
+    # Stop current scheduler
+    stop_scheduler(wait=False, timeout=5)
+
+    # Create new scheduler instance
+    global scheduler
+    scheduler = Scheduler()
+
+    # Start with new interval
+    if interval_seconds:
+        # Temporarily override the interval
+        original_interval = settings.default_fetch_interval
+        settings.default_fetch_interval = interval_seconds
+        scheduler.start(run_immediately=False)
+        settings.default_fetch_interval = original_interval
+    else:
+        scheduler.start(run_immediately=False)
+
+    logger.info("Scheduler restarted successfully")
+
+
 def refresh_source(source_id: str) -> bool:
     """
     Manually refresh a specific source.

@@ -2,21 +2,106 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
-import { statsApi } from '@/api';
-import type { Stats } from '@/api';
-import { RefreshCw, Database, Clock, Key } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { statsApi, settingsApi, type Stats, type Settings } from '@/api';
+import { useToast } from '@/hooks/use-toast';
+import { RefreshCw, Database, Clock, Key, Save, RotateCcw, AlertCircle } from 'lucide-react';
 
-export default function Settings() {
+export default function SettingsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [intervalMinutes, setIntervalMinutes] = useState(30);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    statsApi
-      .get()
-      .then(setStats)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      const [statsData, settingsData] = await Promise.all([
+        statsApi.get(),
+        settingsApi.get(),
+      ]);
+      setStats(statsData);
+      setSettings(settingsData);
+      setIntervalMinutes(settingsData.fetch_interval_minutes);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIntervalChange = (value: string) => {
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 30) {
+      setIntervalMinutes(num);
+      setHasChanges(num !== settings?.fetch_interval_minutes);
+    }
+  };
+
+  const handleSave = async () => {
+    if (intervalMinutes < 30) {
+      toast({
+        title: 'Error',
+        description: 'Fetch interval must be at least 30 minutes',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updated = await settingsApi.update(intervalMinutes);
+      setSettings(updated);
+      setHasChanges(false);
+      toast({
+        title: 'Success',
+        description: 'Settings saved. Restart scheduler to apply changes.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!confirm('Are you sure you want to restart the scheduler?')) {
+      return;
+    }
+
+    setIsRestarting(true);
+    try {
+      const result = await settingsApi.restart();
+      toast({
+        title: 'Success',
+        description: result.message,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to restart scheduler',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRestarting(false);
+    }
+  };
 
   if (loading) return <div>Loading...</div>;
 
@@ -102,13 +187,78 @@ export default function Settings() {
             <Clock className="h-5 w-5" />
             RSS Fetching
           </CardTitle>
-          <CardDescription>Current RSS fetching configuration</CardDescription>
+          <CardDescription>Configure automatic RSS feed fetching interval</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-slate-600">
-            RSS feeds are automatically fetched every 5 minutes. You can configure this by setting
-            the DEFAULT_FETCH_INTERVAL environment variable.
-          </p>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <div className="text-sm text-yellow-800">
+                <p className="font-medium">Important</p>
+                <p>Frequent fetching may burden RSS servers. Minimum interval is 30 minutes.</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Fetch Interval (minutes)
+                </label>
+                <Input
+                  type="number"
+                  min={30}
+                  value={intervalMinutes}
+                  onChange={(e) => handleIntervalChange(e.target.value)}
+                  className={intervalMinutes < 30 ? 'border-red-500' : ''}
+                />
+                {intervalMinutes < 30 && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Minimum interval is 30 minutes
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Current Setting
+                </label>
+                <div className="text-sm text-slate-600 py-2">
+                  {settings?.fetch_interval_minutes} minutes
+                  {settings?.updated_at && (
+                    <span className="ml-2 text-slate-400">
+                      (updated: {new Date(settings.updated_at).toLocaleString()})
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={handleSave}
+                disabled={!hasChanges || intervalMinutes < 30 || isSaving}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save Settings'}
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={handleRestart}
+                disabled={hasChanges || isRestarting}
+                title={hasChanges ? 'Save changes before restarting' : 'Restart scheduler to apply changes'}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                {isRestarting ? 'Restarting...' : 'Restart Scheduler'}
+              </Button>
+            </div>
+
+            {hasChanges && (
+              <p className="text-sm text-amber-600">
+                You have unsaved changes. Save before restarting.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </>

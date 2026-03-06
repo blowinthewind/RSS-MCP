@@ -234,3 +234,53 @@ class ApiKey(Base):
 
     def __repr__(self) -> str:
         return f"<ApiKey(id={self.id}, name={self.name}, preview={self.key_preview})>"
+
+
+class SystemConfig(Base):
+    """
+    System configuration model.
+
+    Stores dynamic system configuration in key-value format.
+    """
+
+    __tablename__ = "system_config"
+
+    # Configuration key
+    key: Mapped[str] = mapped_column(
+        String(255),
+        primary_key=True,
+    )
+
+    # Configuration value
+    value: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    # Last update timestamp
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    def __repr__(self) -> str:
+        return f"<SystemConfig(key={self.key}, value={self.value[:50]}...)>"
+
+    @classmethod
+    def get_value(cls, db, key: str, default: str = "") -> str:
+        """Get configuration value by key."""
+        config = db.query(cls).filter(cls.key == key).first()
+        return config.value if config else default
+
+    @classmethod
+    def set_value(cls, db, key: str, value: str) -> "SystemConfig":
+        """Set configuration value by key."""
+        config = db.query(cls).filter(cls.key == key).first()
+        if config:
+            config.value = value
+        else:
+            config = cls(key=key, value=value)
+            db.add(config)
+        db.commit()
+        return config

@@ -19,7 +19,7 @@ from app.database import init_db, get_db
 from app.models import Source, Article
 from app.mcp.tools import mcp
 from app.services.scheduler import start_scheduler, stop_scheduler
-from app.routers import sources_router, feeds_router, search_router, articles_router, api_keys_router
+from app.routers import sources_router, feeds_router, search_router, articles_router, api_keys_router, settings_router
 
 
 # Configure logging
@@ -149,6 +149,7 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(articles_router)
     app.include_router(api_keys_router)
+    app.include_router(settings_router)
 
     # Health check endpoint
     @app.get("/health")
