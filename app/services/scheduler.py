@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 # Thread pool for running content extraction without blocking
 _content_extract_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="content-extract-")
 
+# Thread pool for concurrent source fetching
+_source_fetch_executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix="source-fetch-")
+
 
 class Scheduler:
     """
@@ -84,19 +87,44 @@ class Scheduler:
         Fetch all enabled sources and extract content.
 
         This is the main job that runs periodically.
+        Uses concurrent fetching for better performance.
         """
         logger.info("Starting scheduled fetch of all sources")
 
         with get_db_session() as db:
             sources = db.query(Source).filter(Source.enabled == True).all()
 
-            for source in sources:
-                try:
-                    self._fetch_source(db, source)
-                except Exception as e:
-                    logger.error(f"Error fetching source {source.name}: {e}")
+        if not sources:
+            logger.info("No enabled sources to fetch")
+            return
 
-            logger.info("Scheduled fetch completed")
+        # Fetch sources concurrently using thread pool
+        futures = []
+        for source in sources:
+            future = _source_fetch_executor.submit(self._fetch_source_concurrent, source)
+            futures.append((source, future))
+
+        # Wait for all fetches to complete
+        for source, future in futures:
+            try:
+                future.result(timeout=60)  # 60 second timeout per source
+            except Exception as e:
+                logger.error(f"Error fetching source {source.name}: {e}")
+
+        logger.info(f"Scheduled fetch completed for {len(sources)} sources")
+
+    def _fetch_source_concurrent(self, source: Source):
+        """
+        Fetch a single source with its own database session.
+
+        Args:
+            source: Source object to fetch
+        """
+        with get_db_session() as db:
+            # Refresh source object in new session
+            source = db.query(Source).filter(Source.id == source.id).first()
+            if source:
+                self._fetch_source(db, source)
 
     def _fetch_source(self, db, source: Source):
         """
