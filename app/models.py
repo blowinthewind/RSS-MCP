@@ -176,3 +176,61 @@ class Article(Base):
 
     def __repr__(self) -> str:
         return f"<Article(id={self.id}, title={self.title[:50]}...)>"
+
+
+class ApiKey(Base):
+    """
+    API Key model.
+
+    Represents an API key for authentication.
+    Keys are stored as SHA256 hashes for security.
+    """
+
+    __tablename__ = "api_keys"
+
+    # Primary key
+    id: Mapped[str] = mapped_column(
+        String(12),
+        primary_key=True,
+        default=generate_id,
+    )
+
+    # Key name (user-defined)
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    # SHA256 hash of the API key (never store plain text)
+    key_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        index=True,  # Index for fast lookup during authentication
+    )
+
+    # Preview of the key (first 4 + **** + last 4 chars) for display
+    key_preview: Mapped[str] = mapped_column(
+        String(13),
+        nullable=False,
+    )
+
+    # Creation timestamp
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=utc_now,
+    )
+
+    # Last usage timestamp
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+    # Whether this key is active
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
+
+    def __repr__(self) -> str:
+        return f"<ApiKey(id={self.id}, name={self.name}, preview={self.key_preview})>"

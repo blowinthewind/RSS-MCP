@@ -11,6 +11,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.config import settings
+from app.database import get_db_session
+from app.routers.api_keys import verify_api_key
 
 
 logger = logging.getLogger(__name__)
@@ -54,13 +56,15 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
         api_key = parts[1]
 
-        # Validate API key
-        if api_key not in settings.api_keys_list:
-            logger.warning(f"Invalid API key from {request.client.host}")
-            return JSONResponse(
-                status_code=401,
-                content={"error": "Invalid API key"},
-            )
+        # Validate API key against database
+        with get_db_session() as db:
+            db_key = verify_api_key(db, api_key)
+            if not db_key:
+                logger.warning(f"Invalid API key from {request.client.host}")
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "Invalid API key"},
+                )
 
         # API key is valid, proceed with request
         return await call_next(request)
@@ -82,4 +86,6 @@ def check_api_key(api_key: Optional[str]) -> bool:
     if not api_key:
         return False
 
-    return api_key in settings.api_keys_list
+    # Validate against database
+    with get_db_session() as db:
+        return verify_api_key(db, api_key) is not None

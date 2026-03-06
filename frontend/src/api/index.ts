@@ -49,6 +49,23 @@ export interface ApiErrorResponse {
   message?: string;
 }
 
+export interface ApiKey {
+  id: string;
+  name: string;
+  key_preview: string;
+  created_at: string;
+  last_used_at: string | null;
+  is_active: boolean;
+}
+
+export interface ApiKeyCreateResponse extends ApiKey {
+  key: string; // Only returned once on creation
+}
+
+export interface ApiKeyListResponse {
+  items: ApiKey[];
+}
+
 const API_BASE = '/api';
 
 export class ApiError extends Error {
@@ -199,4 +216,19 @@ export const articlesApi = {
 
 export const statsApi = {
   get: () => fetchApi<Stats>('/stats'),
+};
+
+export const apiKeysApi = {
+  list: () => fetchApi<ApiKeyListResponse>('/api-keys'),
+
+  create: (name: string) =>
+    fetchApi<ApiKeyCreateResponse>('/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  delete: (id: string) => fetchApi<void>(`/api-keys/${id}`, { method: 'DELETE' }),
+
+  revoke: (id: string) =>
+    fetchApi<ApiKey>(`/api-keys/${id}/revoke`, { method: 'POST' }),
 };
