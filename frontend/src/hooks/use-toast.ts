@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { toast as sonnerToast } from 'sonner';
 
 interface ToastOptions {
   title: string;
@@ -7,20 +7,17 @@ interface ToastOptions {
 }
 
 export function useToast() {
-  const toast = useCallback((options: ToastOptions) => {
-    // Simple implementation - just log to console for now
-    // In a full implementation, this would show a toast notification
+  const toast = (options: ToastOptions) => {
     if (options.variant === 'destructive') {
-      console.error(`[Toast] ${options.title}: ${options.description}`);
+      sonnerToast.error(options.title, {
+        description: options.description,
+      });
     } else {
-      console.log(`[Toast] ${options.title}: ${options.description}`);
+      sonnerToast.success(options.title, {
+        description: options.description,
+      });
     }
-    
-    // Also show browser alert for destructive messages
-    if (options.variant === 'destructive') {
-      // alert(`${options.title}: ${options.description}`);
-    }
-  }, []);
+  };
 
   return { toast };
 }

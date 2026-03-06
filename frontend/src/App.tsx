@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { Layout } from './components/Layout';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import Sources from './pages/Sources';
 import Articles from './pages/Articles';
@@ -11,6 +12,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <Toaster position="top-right" richColors />
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
