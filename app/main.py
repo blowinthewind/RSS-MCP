@@ -279,6 +279,43 @@ def run_sse():
     uvicorn.run(app, host=settings.host, port=settings.port)
 
 
+def run_streamable_http():
+    """
+    Run MCP server in Streamable HTTP mode.
+
+    This is the recommended mode for remote MCP connections.
+    Uses standard HTTP with streaming support for better compatibility.
+    Supports optional API key authentication.
+    """
+    import asyncio
+
+    # Setup MCP resources and prompts
+    setup_mcp_resources()
+    setup_mcp_prompts()
+
+    # Initialize database
+    init_db()
+
+    # Load preset sources
+    try:
+        from app.services.preset_loader import load_preset_sources
+        load_preset_sources()
+    except Exception as e:
+        logger.warning(f"Failed to load preset sources: {e}")
+
+    # Run MCP server with streamable-http transport
+    logger.info(f"Starting MCP server in streamable-http mode on {settings.host}:{settings.port}...")
+    
+    async def start_server():
+        await mcp.run_http_async(
+            transport="streamable-http",
+            host=settings.host,
+            port=settings.port,
+        )
+    
+    asyncio.run(start_server())
+
+
 def main():
     """
     Main entry point.
@@ -291,6 +328,8 @@ def main():
         run_stdio()
     elif deployment == "sse":
         run_sse()
+    elif deployment == "streamable-http":
+        run_streamable_http()
     elif deployment == "auto":
         # Auto-detect: check if running in a terminal
         if sys.stdin.isatty():

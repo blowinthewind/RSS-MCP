@@ -16,10 +16,11 @@ server:
   port: 8000
 
 # Deployment mode
-# Options: auto, stdio, sse
+# Options: auto, stdio, sse, streamable-http
 #   auto: Automatically detect (default)
 #   stdio: Local stdio mode for MCP
-#   sse: Remote HTTP SSE mode
+#   sse: Remote HTTP SSE mode (legacy)
+#   streamable-http: Streamable HTTP mode (recommended for remote)
 deployment: "auto"
 
 # Authentication configuration (for SSE mode)

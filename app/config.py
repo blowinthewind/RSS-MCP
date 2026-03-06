@@ -76,8 +76,8 @@ class Settings(BaseSettings):
         description="Database connection URL",
     )
 
-    # Deployment mode: auto/stdio/sse
-    deployment: Literal["auto", "stdio", "sse"] = Field(
+    # Deployment mode: auto/stdio/sse/streamable-http
+    deployment: Literal["auto", "stdio", "sse", "streamable-http"] = Field(
         default_factory=lambda: get_yaml_value("deployment", "auto"),
         description="Deployment mode: auto/stdio/sse",
     )

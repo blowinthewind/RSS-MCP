@@ -58,7 +58,7 @@ class TestSettings:
     def test_deployment_literal_validation(self):
         """Test that deployment field only accepts valid values."""
         # Valid values
-        for value in ["auto", "stdio", "sse"]:
+        for value in ["auto", "stdio", "sse", "streamable-http"]:
             with patch.dict(os.environ, {"DEPLOYMENT": value}, clear=True):
                 settings = Settings()
                 assert settings.deployment == value
