@@ -11,10 +11,12 @@ export function useToast() {
     if (options.variant === 'destructive') {
       sonnerToast.error(options.title, {
         description: options.description,
+        duration: 3000, // Error messages show longer
       });
     } else {
       sonnerToast.success(options.title, {
         description: options.description,
+        duration: 1500, // Success messages disappear quickly
       });
     }
   };
