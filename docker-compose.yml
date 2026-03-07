@@ -4,14 +4,14 @@ services:
   rss-mcp:
     build: .
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/rss
-      - DEPLOYMENT=sse
-      - AUTH_ENABLED=true
-      - API_KEYS=${API_KEYS:-}
-      - DEFAULT_FETCH_INTERVAL=300
-      - ENABLE_CONTENT_EXTRACTION=true
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-rss}
+      - DEPLOYMENT=${DEPLOYMENT:-streamable-http}
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
+      - DEFAULT_FETCH_INTERVAL=${DEFAULT_FETCH_INTERVAL:-300}
+      - ENABLE_CONTENT_EXTRACTION=${ENABLE_CONTENT_EXTRACTION:-true}
+      - PRODUCTION_MODE=${PRODUCTION_MODE:-false}
     depends_on:
       - db
     restart: unless-stopped
@@ -19,9 +19,9 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=rss
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB:-rss}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
