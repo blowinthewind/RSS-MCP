@@ -242,6 +242,27 @@ Add to `claude_desktop_config.json`:
 
 Add to Cursor settings (MCP configuration):
 
+**STDIO Mode (Local):**
+
+```json
+{
+  "mcpServers": {
+    "rss-reader": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/DailyNews", "run", "rss-mcp"]
+    }
+  }
+}
+```
+
+**Remote Mode (SSE):**
+
+Start server first:
+```bash
+DEPLOYMENT=sse uv run rss-mcp
+```
+
+Then configure:
 ```json
 {
   "mcpServers": {
@@ -251,6 +272,92 @@ Add to Cursor settings (MCP configuration):
   }
 }
 ```
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+**STDIO Mode (Local):**
+
+```json
+{
+  "mcpServers": {
+    "rss-reader": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/DailyNews", "run", "rss-mcp"]
+    }
+  }
+}
+```
+
+**Streamable HTTP Mode (Remote):**
+
+Start server first:
+```bash
+DEPLOYMENT=streamable-http uv run rss-mcp
+```
+
+Then configure:
+```json
+{
+  "mcpServers": {
+    "rss-reader": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+**SSE Mode (Remote - Legacy):**
+
+```json
+{
+  "mcpServers": {
+    "rss-reader": {
+      "type": "sse",
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+### Client Configuration Reference
+
+| Client | STDIO | Streamable HTTP | SSE | Notes |
+|--------|-------|-----------------|-----|-------|
+| Cherry Studio | ✅ | ✅ | ✅ | All modes supported |
+| Claude Desktop | ✅ | ✅ | ✅ | Use `type` field for remote modes |
+| Cursor | ✅ | ❌ | ✅ | Cursor currently supports SSE only for remote |
+| Windsurf | ✅ | ✅ | ✅ | Similar to Claude Desktop |
+
+### Authentication in Clients
+
+When authentication is enabled (`AUTH_ENABLED=true`), add the API key to your client configuration:
+
+**Cherry Studio:**
+Add header in the connection settings:
+```
+Authorization: Bearer your-api-key
+```
+
+**Claude Desktop:**
+```json
+{
+  "mcpServers": {
+    "rss-reader": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer your-api-key"
+      }
+    }
+  }
+}
+```
+
+**Cursor:**
+Currently, Cursor does not support custom headers for MCP. Use a reverse proxy to add authentication, or disable authentication for Cursor usage.
 
 ## System Prompt
 
