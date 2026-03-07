@@ -12,6 +12,7 @@ from fastmcp import FastMCP
 from app.config import settings
 from app.database import get_db_session
 from app.models import Source, Article
+from sqlalchemy import or_
 from app.services.rss_fetcher import fetch_feed
 from app.services.content_extract import extract_content
 from app.services.scheduler import refresh_source as do_refresh
