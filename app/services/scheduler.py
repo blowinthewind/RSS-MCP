@@ -115,38 +115,45 @@ class Scheduler:
 
         with get_db_session() as db:
             sources = db.query(Source).filter(Source.enabled == True).all()
+            # Extract source IDs and names before session closes
+            source_info = [(s.id, s.name) for s in sources]
 
-        if not sources:
+        if not source_info:
             logger.info("No enabled sources to fetch")
             return
 
         # Fetch sources concurrently using thread pool
         futures = []
-        for source in sources:
-            future = _source_fetch_executor.submit(self._fetch_source_concurrent, source)
-            futures.append((source, future))
+        for source_id, source_name in source_info:
+            future = _source_fetch_executor.submit(
+                self._fetch_source_concurrent, source_id, source_name
+            )
+            futures.append((source_id, source_name, future))
 
         # Wait for all fetches to complete
-        for source, future in futures:
+        for source_id, source_name, future in futures:
             try:
                 future.result(timeout=60)  # 60 second timeout per source
             except Exception as e:
-                logger.error(f"Error fetching source {source.name}: {e}")
+                logger.error(f"Error fetching source {source_name}: {e}")
 
-        logger.info(f"Scheduled fetch completed for {len(sources)} sources")
+        logger.info(f"Scheduled fetch completed for {len(source_info)} sources")
 
-    def _fetch_source_concurrent(self, source: Source):
+    def _fetch_source_concurrent(self, source_id: str, source_name: str):
         """
         Fetch a single source with its own database session.
 
         Args:
-            source: Source object to fetch
+            source_id: ID of the source to fetch
+            source_name: Name of the source (for logging)
         """
         with get_db_session() as db:
-            # Refresh source object in new session
-            source = db.query(Source).filter(Source.id == source.id).first()
+            # Get source object in new session
+            source = db.query(Source).filter(Source.id == source_id).first()
             if source:
                 self._fetch_source(db, source)
+            else:
+                logger.warning(f"Source {source_name} ({source_id}) not found")
 
     def _fetch_source(self, db, source: Source):
         """
