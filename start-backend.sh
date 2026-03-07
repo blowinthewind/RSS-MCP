@@ -21,7 +21,7 @@ if [ -f .env ]; then
 fi
 
 # Default configuration
-export DEPLOYMENT=${DEPLOYMENT:-streamable-http}
+export DEPLOYMENT=${DEPLOYMENT:-sse}
 export AUTH_ENABLED=${AUTH_ENABLED:-false}
 export HOST=${HOST:-0.0.0.0}
 export PORT=${PORT:-8000}
