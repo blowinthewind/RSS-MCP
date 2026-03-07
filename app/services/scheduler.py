@@ -49,10 +49,14 @@ class Scheduler:
             logger.warning("Scheduler is already running")
             return
 
+        # Get fetch interval from database or use default
+        fetch_interval = self._get_fetch_interval_from_db()
+        logger.info(f"Using fetch interval: {fetch_interval} seconds")
+
         # Add job to fetch all sources
         self.scheduler.add_job(
             func=self.fetch_all_sources,
-            trigger=IntervalTrigger(seconds=settings.default_fetch_interval),
+            trigger=IntervalTrigger(seconds=fetch_interval),
             id="fetch_all_sources",
             name="Fetch all RSS sources",
             replace_existing=True,
@@ -65,6 +69,24 @@ class Scheduler:
         if run_immediately:
             logger.info("Running initial fetch immediately...")
             self.fetch_all_sources()
+
+    def _get_fetch_interval_from_db(self) -> int:
+        """Get fetch interval from database or return default."""
+        try:
+            with get_db_session() as db:
+                from app.models import SystemConfig
+                config = db.query(SystemConfig).filter(SystemConfig.key == "fetch_interval_minutes").first()
+                if config and config.value:
+                    try:
+                        interval_minutes = int(config.value)
+                        return interval_minutes * 60  # Convert to seconds
+                    except ValueError:
+                        pass
+        except Exception as e:
+            logger.warning(f"Failed to get fetch interval from database: {e}")
+
+        # Return default from settings
+        return settings.default_fetch_interval
 
     def stop(self, wait: bool = False, timeout: Optional[int] = 10):
         """Stop the scheduler.
