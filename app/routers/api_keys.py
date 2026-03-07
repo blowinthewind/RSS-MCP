@@ -202,13 +202,10 @@ def verify_api_key_from_header(auth_header: str) -> tuple[bool, str]:
     api_key = parts[1]
 
     # Verify API key against database
-    from app.database import get_db
-    db = next(get_db())
-    try:
+    from app.database import get_db_session
+    with get_db_session() as db:
         db_key = verify_api_key(db, api_key)
         if not db_key:
             return False, "Invalid API key"
-    finally:
-        db.close()
 
     return True, ""
