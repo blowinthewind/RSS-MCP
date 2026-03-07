@@ -374,12 +374,16 @@ def run_streamable_http():
         logger.info("RSS MCP Service started in streamable-http mode")
 
         try:
+            # Add auth middleware to MCP if authentication is enabled
+            if settings.auth_enabled:
+                mcp.add_middleware(AuthMiddleware)
+                logger.info("Authentication middleware added")
+
             # Run server
             await mcp.run_http_async(
                 transport="streamable-http",
                 host=settings.host,
                 port=settings.port,
-                middleware=[AuthMiddleware],
             )
         finally:
             # Shutdown
