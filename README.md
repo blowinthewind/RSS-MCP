@@ -39,6 +39,30 @@ cp .env.example .env
 
 ### Running
 
+#### Quick Start with Scripts
+
+We provide convenient startup scripts for development:
+
+```bash
+# Terminal 1: Start backend
+./start-backend.sh
+
+# Terminal 2: Start frontend
+./start-frontend.sh
+```
+
+The backend script will:
+- Check for required dependencies (uv)
+- Load environment variables from `.env` if present
+- Start the server with SSE mode (default for debugging)
+
+The frontend script will:
+- Check for required dependencies (npm)
+- Auto-install dependencies if needed
+- Start the Vite dev server
+
+#### Manual Start
+
 ```bash
 # Run with uv (auto-detects mode)
 uv run rss-mcp
