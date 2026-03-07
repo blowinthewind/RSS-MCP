@@ -2,6 +2,8 @@
 
 A MCP (Model Context Protocol) service for RSS feeds, designed for LLMs. Enables AI assistants to discover, search, and retrieve RSS feed content through a standardized MCP interface.
 
+[中文文档](README_CN.md) | English
+
 ## Features
 
 - **MCP Protocol Support**: Full MCP implementation with Tools, Resources, and Prompts
