@@ -28,6 +28,12 @@ deployment: "auto"
 auth:
   enabled: false
 
+# Security configuration
+# Set production_mode to true for production deployments
+# This enables HTTPS redirect and stricter security settings
+security:
+  production_mode: false
+
 # RSS fetching configuration
 rss:
   # Default fetch interval in seconds (5 minutes)

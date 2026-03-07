@@ -135,14 +135,32 @@ def create_app() -> FastAPI:
         lifespan=app_lifespan,
     )
 
+    # Add HTTPS redirect middleware in production mode
+    if settings.production_mode:
+        from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+        app.add_middleware(HTTPSRedirectMiddleware)
+        logger.info("HTTPS redirect enabled (production mode)")
+
     # Add CORS middleware for MCP Inspector and frontend access
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # Allow all origins for development
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # In production, restrict origins
+    if settings.production_mode:
+        # In production, CORS should be configured with specific origins
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["https://localhost", "https://localhost:3000"],  # Restrict in production
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+            allow_headers=["Authorization", "Content-Type"],
+        )
+    else:
+        # Development: allow all origins
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     # Include routers
     app.include_router(sources_router)

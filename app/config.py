@@ -98,6 +98,12 @@ class Settings(BaseSettings):
         description="Enable API key authentication for remote mode",
     )
 
+    # Security configuration
+    production_mode: bool = Field(
+        default_factory=lambda: get_yaml_value("security.production_mode", False),
+        description="Enable production mode (HTTPS redirect, stricter security)",
+    )
+
     # RSS fetching configuration
     default_fetch_interval: int = Field(
         default_factory=lambda: get_yaml_value("rss.fetch_interval", 300),
