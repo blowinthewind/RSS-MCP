@@ -6,12 +6,14 @@ A MCP (Model Context Protocol) service for RSS feeds, designed for LLMs. Enables
 
 - **MCP Protocol Support**: Full MCP implementation with Tools, Resources, and Prompts
 - **Multi-client Compatibility**: Works with Claude Desktop, Cursor, Cherry Studio, Coze, and other MCP clients
-- **Dual Deployment**: Auto-detects stdio (local) or SSE (remote) mode
+- **Dual Deployment**: Auto-detects stdio (local) or SSE/Streamable HTTP (remote) mode
 - **Preset RSS Sources**: Comes with built-in popular tech and news sources
 - **Full CRUD Operations**: Add, remove, enable/disable RSS sources via MCP tools
 - **Content Extraction**: Extracts full article content using trafilatura
 - **Flexible Storage**: Supports SQLite (default) and PostgreSQL
-- **Scheduled Fetching**: Automatic periodic RSS feed updates with immediate first fetch
+- **Scheduled Fetching**: Automatic periodic RSS feed updates with configurable interval
+- **Web UI**: Built-in web interface for managing sources, articles, API keys, and settings
+- **Production Ready**: HTTPS support, API key authentication, production mode
 
 ## Quick Start
 
@@ -42,25 +44,72 @@ cp .env.example .env
 uv run rss-mcp
 
 # Or explicitly specify mode
-DEPLOYMENT=stdio uv run rss-mcp  # Local stdio mode
-DEPLOYMENT=sse uv run rss-mcp    # Remote SSE mode
+DEPLOYMENT=stdio uv run rss-mcp              # Local stdio mode
+DEPLOYMENT=sse uv run rss-mcp                # Remote SSE mode (legacy)
+DEPLOYMENT=streamable-http uv run rss-mcp    # Remote Streamable HTTP mode (recommended)
 ```
 
-### Authentication (SSE Mode)
+### Configuration
 
-When deploying in SSE mode, you can enable API key authentication:
+The service can be configured via `config.yaml` or environment variables:
+
+```yaml
+# config.yaml
+# Database configuration
+database:
+  url: "sqlite:///./rss.db"  # or "postgresql://user:pass@localhost/rss"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+# Deployment mode: auto, stdio, sse, streamable-http
+deployment: "auto"
+
+# Security (enable for production)
+security:
+  production_mode: false  # Set to true for HTTPS redirect and stricter CORS
+
+# Authentication
+auth:
+  enabled: false  # Set to true to require API keys
+
+# RSS fetching configuration
+rss:
+  fetch_interval: 300        # seconds (5 minutes)
+  request_timeout: 30        # seconds
+  max_items_per_source: 50   # max articles per fetch
+```
+
+Environment variables override config file settings:
+- `DATABASE_URL` - Database connection URL
+- `DEPLOYMENT` - Deployment mode
+- `AUTH_ENABLED` - Enable authentication
+- `PRODUCTION_MODE` - Enable production mode
+- `HOST` / `PORT` - Server binding
+
+### Authentication (SSE/Streamable HTTP Mode)
+
+When deploying in remote mode, you can enable API key authentication:
 
 ```bash
-# Enable authentication with API key
-AUTH_ENABLED=true API_KEYS=your-api-key,another-key DEPLOYMENT=sse uv run rss-mcp
+# Enable authentication
+AUTH_ENABLED=true DEPLOYMENT=sse uv run rss-mcp
+
+# Or with Streamable HTTP (recommended)
+AUTH_ENABLED=true DEPLOYMENT=streamable-http uv run rss-mcp
 ```
 
-**Environment Variables:**
+**Managing API Keys:**
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `AUTH_ENABLED` | Enable API key authentication (true/false) | false |
-| `API_KEYS` | Comma-separated list of API keys | (none) |
+API keys are managed through the web UI at `http://localhost:8000`:
+
+1. Open the web UI in your browser
+2. Navigate to "API Keys" page
+3. Click "Create API Key" to generate a new key
+4. Copy the key immediately (shown only once)
+5. Use the key in your MCP client
 
 **Client Usage:**
 
@@ -72,7 +121,7 @@ curl -H "Authorization: Bearer your-api-key" http://localhost:8000/mcp
 # Add header: Authorization: Bearer your-api-key
 ```
 
-**Note:** Authentication is only applied in SSE mode. STDIO mode does not support authentication.
+**Note:** Authentication is only applied in SSE/Streamable HTTP mode. STDIO mode does not support authentication.
 
 ### Docker Deployment
 
@@ -144,6 +193,8 @@ The service comes with 8 preset RSS sources:
 2. Click "Add Server"
 3. Configure:
 
+**STDIO Mode (Local):**
+
 | Field | Value |
 |-------|-------|
 | Name | RSS Reader |
@@ -151,7 +202,21 @@ The service comes with 8 preset RSS sources:
 | Command | uv |
 | Arguments | `--directory /path/to/DailyNews run rss-mcp` |
 
-Or use SSE mode (start server first with `DEPLOYMENT=sse uv run rss-mcp`):
+**Streamable HTTP Mode (Remote - Recommended):**
+
+Start server first:
+```bash
+DEPLOYMENT=streamable-http uv run rss-mcp
+```
+
+Then configure:
+
+| Field | Value |
+|-------|-------|
+| Type | Streamable HTTP |
+| URL | http://localhost:8000/mcp |
+
+**SSE Mode (Remote - Legacy):**
 
 | Field | Value |
 |-------|-------|
@@ -191,6 +256,49 @@ Add to Cursor settings (MCP configuration):
 
 A system prompt template is provided in `SYSTEM_PROMPT.md` for LLM clients. This helps the AI understand when and how to use each MCP tool.
 
+## Production Deployment
+
+### Security Checklist
+
+Before deploying to production:
+
+- [ ] Enable `production_mode: true` in config.yaml (HTTPS redirect, strict CORS)
+- [ ] Enable `auth.enabled: true` (require API key authentication)
+- [ ] Generate API keys via Web UI and distribute to clients
+- [ ] Use PostgreSQL instead of SQLite for better performance
+- [ ] Set up reverse proxy (Nginx/Caddy) with HTTPS
+- [ ] Configure firewall to restrict access
+
+### Example Production Setup
+
+**1. Update config.yaml:**
+
+```yaml
+security:
+  production_mode: true
+
+auth:
+  enabled: true
+
+database:
+  url: "postgresql://user:password@localhost/rss"
+```
+
+**2. Use Caddy for automatic HTTPS:**
+
+```
+# Caddyfile
+rss.example.com {
+    reverse_proxy localhost:8000
+}
+```
+
+**3. Start service:**
+
+```bash
+DEPLOYMENT=streamable-http uv run rss-mcp
+```
+
 ## Testing
 
 ### Run Tests
@@ -227,9 +335,11 @@ npx @modelcontextprotocol/inspector uv run rss-mcp
 
 Then open http://localhost:6274 in your browser.
 
-## REST API
+## REST API & Web UI
 
-When running in SSE mode, REST API is also available:
+When running in SSE or Streamable HTTP mode, REST API and Web UI are also available:
+
+### REST API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -241,7 +351,22 @@ When running in SSE mode, REST API is also available:
 | `/api/feeds/{source_id}` | GET | Get articles from source |
 | `/api/search?q=query` | GET | Search articles |
 | `/api/articles/{id}` | GET | Get article details |
+| `/api/api-keys` | GET | List API keys |
+| `/api/api-keys` | POST | Create API key |
+| `/api/api-keys/{id}` | DELETE | Delete API key |
+| `/api/settings` | GET | Get settings |
+| `/api/settings` | PATCH | Update settings |
 | `/health` | GET | Health check |
+
+### Web UI
+
+Access the web UI at `http://localhost:8000` when running in remote mode:
+
+- **Dashboard**: View statistics and overview
+- **Sources**: Manage RSS sources
+- **Articles**: Browse and search articles
+- **API Keys**: Create and manage API keys
+- **Settings**: Configure service settings (RSS fetch interval, etc.)
 
 ## Project Structure
 
