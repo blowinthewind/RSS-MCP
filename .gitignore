@@ -27,8 +27,18 @@ frontend/.vite/
 
 # IDEs
 .trae
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # Scripts
 scripts/
 
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
 
