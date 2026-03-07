@@ -345,28 +345,49 @@ def run_streamable_http():
     setup_mcp_resources()
     setup_mcp_prompts()
 
-    # Initialize database
-    init_db()
-
-    # Load preset sources
-    try:
-        from app.services.preset_loader import load_preset_sources
-        load_preset_sources()
-    except Exception as e:
-        logger.warning(f"Failed to load preset sources: {e}")
-
     # Run MCP server with streamable-http transport
     logger.info(f"Starting MCP server in streamable-http mode on {settings.host}:{settings.port}...")
 
-    async def start_server():
-        await mcp.run_http_async(
-            transport="streamable-http",
-            host=settings.host,
-            port=settings.port,
-            middleware=[AuthMiddleware],
-        )
+    async def run_lifespan():
+        """Run lifespan context manager."""
+        # Startup
+        logger.info("Starting RSS MCP Service...")
 
-    asyncio.run(start_server())
+        # Initialize database
+        init_db()
+        logger.info("Database initialized")
+
+        # Import and load preset sources
+        try:
+            from app.services.preset_loader import load_preset_sources
+            load_preset_sources()
+        except Exception as e:
+            logger.warning(f"Failed to load preset sources: {e}")
+
+        # Start scheduler
+        try:
+            from app.services.scheduler import scheduler
+            scheduler.start(run_immediately=False)
+        except Exception as e:
+            logger.warning(f"Failed to start scheduler: {e}")
+
+        logger.info("RSS MCP Service started in streamable-http mode")
+
+        try:
+            # Run server
+            await mcp.run_http_async(
+                transport="streamable-http",
+                host=settings.host,
+                port=settings.port,
+                middleware=[AuthMiddleware],
+            )
+        finally:
+            # Shutdown
+            logger.info("Shutting down RSS MCP Service...")
+            stop_scheduler()
+            logger.info("RSS MCP Service stopped")
+
+    asyncio.run(run_lifespan())
 
 
 def main():
