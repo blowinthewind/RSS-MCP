@@ -24,7 +24,7 @@ A MCP (Model Context Protocol) service for RSS feeds, designed for LLMs. Enables
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd DailyNews
+cd RSS-MCP
 
 # Install dependencies using uv
 uv venv
@@ -226,7 +226,7 @@ The service comes with 8 preset RSS sources:
 | Name | RSS Reader |
 | Type | STDIO |
 | Command | uv |
-| Arguments | `--directory /path/to/DailyNews run rss-mcp` |
+| Arguments | `--directory /path/to/RSS-MCP run rss-mcp` |
 
 **Streamable HTTP Mode (Remote - Recommended):**
 
@@ -275,7 +275,7 @@ Add to Cursor settings (MCP configuration):
   "mcpServers": {
     "rss-reader": {
       "command": "uv",
-      "args": ["--directory", "/path/to/DailyNews", "run", "rss-mcp"]
+      "args": ["--directory", "/path/to/RSS-MCP", "run", "rss-mcp"]
     }
   }
 }
@@ -310,7 +310,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "rss-reader": {
       "command": "uv",
-      "args": ["--directory", "/path/to/DailyNews", "run", "rss-mcp"]
+      "args": ["--directory", "/path/to/RSS-MCP", "run", "rss-mcp"]
     }
   }
 }
@@ -504,7 +504,7 @@ Access the web UI at `http://localhost:8000` when running in remote mode:
 ## Project Structure
 
 ```
-DailyNews/
+RSS-MCP/
 ├── app/
 │   ├── __init__.py
 │   ├── config.py           # Configuration management

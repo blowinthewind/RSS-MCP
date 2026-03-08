@@ -24,7 +24,7 @@
 ```bash
 # 克隆仓库
 git clone <repository-url>
-cd DailyNews
+cd RSS-MCP
 
 # 使用 uv 安装依赖
 uv venv
@@ -226,7 +226,7 @@ docker-compose up -d
 | 名称 | RSS Reader |
 | 类型 | STDIO |
 | 命令 | uv |
-| 参数 | `--directory /path/to/DailyNews run rss-mcp` |
+| 参数 | `--directory /path/to/RSS-MCP run rss-mcp` |
 
 **Streamable HTTP 模式（远程 - 推荐）：**
 
@@ -275,7 +275,7 @@ DEPLOYMENT=streamable-http uv run rss-mcp
   "mcpServers": {
     "rss-reader": {
       "command": "uv",
-      "args": ["--directory", "/path/to/DailyNews", "run", "rss-mcp"]
+      "args": ["--directory", "/path/to/RSS-MCP", "run", "rss-mcp"]
     }
   }
 }
@@ -310,7 +310,7 @@ DEPLOYMENT=sse uv run rss-mcp
   "mcpServers": {
     "rss-reader": {
       "command": "uv",
-      "args": ["--directory", "/path/to/DailyNews", "run", "rss-mcp"]
+      "args": ["--directory", "/path/to/RSS-MCP", "run", "rss-mcp"]
     }
   }
 }
@@ -504,7 +504,7 @@ npx @modelcontextprotocol/inspector uv run rss-mcp
 ## 项目结构
 
 ```
-DailyNews/
+RSS-MCP/
 ├── app/
 │   ├── __init__.py
 │   ├── config.py           # 配置管理
